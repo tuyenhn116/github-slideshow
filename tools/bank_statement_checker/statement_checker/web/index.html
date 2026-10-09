@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiểm tra sao kê</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6677; --border: #dde1e8;
+    --accent: #2457d6; --drop: #eef3ff;
+    --critical: #a3122a; --high: #d1361f; --medium: #c27b00; --low: #4d7c0f; --info: #5d6677;
+    --ok: #1f8a4c; --on-score: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --card: #1b2029; --text: #e6e9ef; --muted: #9aa3b2; --border: #2c3340;
+      --accent: #7aa2ff; --drop: #1d2638;
+      --critical: #ff6b81; --high: #ff8a65; --medium: #f2b544; --low: #a3d65c; --info: #9aa3b2;
+      --ok: #4cc786; --on-score: #12151b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  #drop { display: block; border: 2px dashed var(--border); border-radius: 12px; background: var(--card);
+          padding: 40px 16px; text-align: center; cursor: pointer; transition: .15s; }
+  #drop.over, #drop:hover { border-color: var(--accent); background: var(--drop); }
+  #drop strong { color: var(--accent); }
+  #drop small { color: var(--muted); display: block; margin-top: 6px; }
+  .opts { margin: 12px 0 24px; color: var(--muted); font-size: .9rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+          padding: 18px 20px; margin-bottom: 16px; }
+  .head { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .score { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center;
+           font-weight: 700; font-size: 1.3rem; color: var(--on-score); flex: none; }
+  .name { font-weight: 600; word-break: break-all; }
+  .verdict { font-weight: 600; }
+  .findings { list-style: none; padding: 0; margin: 14px 0 0; }
+  .findings > li { border-left: 4px solid var(--info); padding: 6px 12px; margin: 8px 0;
+                 background: var(--bg); border-radius: 0 8px 8px 0; }
+  .tag { font-size: .72rem; font-weight: 700; letter-spacing: .03em; margin-right: 6px; }
+  .details { margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem;
+             word-break: break-word; }
+  .sev-critical { border-color: var(--critical) !important; } .sev-critical .tag { color: var(--critical); }
+  .sev-high { border-color: var(--high) !important; } .sev-high .tag { color: var(--high); }
+  .sev-medium { border-color: var(--medium) !important; } .sev-medium .tag { color: var(--medium); }
+  .sev-low { border-color: var(--low) !important; } .sev-low .tag { color: var(--low); }
+  .sev-info .tag { color: var(--info); }
+  .none { color: var(--ok); margin-top: 12px; }
+  .err { color: var(--high); }
+  .loading { color: var(--muted); }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 32px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kiểm tra sao kê ngân hàng</h1>
+  <p class="sub">Tải file PDF sao kê lên để tìm dấu hiệu chỉnh sửa hoặc làm giả.
+    File chỉ được phân tích trên máy chủ này và bị xoá ngay sau khi kiểm tra.</p>
+
+  <label id="drop">
+    <input id="file" type="file" accept="application/pdf,.pdf" multiple hidden>
+    <strong>Chọn file PDF</strong> hoặc kéo thả vào đây
+    <small>Có thể chọn nhiều file · tối đa 20 MB mỗi file</small>
+  </label>
+  <div class="opts"><label><input type="checkbox" id="verbose"> Hiện cả mục thông tin (metadata, font, số giao dịch nhận diện được)</label></div>
+
+  <section id="results"></section>
+
+  <footer>Kết quả chỉ là cảnh báo dựa trên dấu hiệu kỹ thuật, không phải kết luận pháp lý.
+    Luôn xác minh trực tiếp với ngân hàng phát hành khi có nghi ngờ.</footer>
+</main>
+
+<script>
+const LABELS = { critical: "RẤT CAO", high: "CAO", medium: "TRUNG BÌNH", low: "THẤP", info: "THÔNG TIN" };
+const ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+const drop = document.getElementById("drop");
+const input = document.getElementById("file");
+const results = document.getElementById("results");
+const verbose = document.getElementById("verbose");
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function scoreColor(score) {
+  if (score >= 50) return "var(--critical)";
+  if (score >= 20) return "var(--medium)";
+  return "var(--ok)";
+}
+
+function render(card, report) {
+  card.replaceChildren();
+  const head = el("div", "head");
+  const score = el("div", "score", String(report.score));
+  score.style.background = scoreColor(report.score);
+  const info = el("div");
+  info.append(el("div", "name", report.path), el("div", "verdict", "Mức rủi ro: " + report.verdict));
+  info.lastChild.style.color = scoreColor(report.score);
+  head.append(score, info);
+  card.append(head);
+
+  const list = el("ul", "findings");
+  const items = report.findings
+    .filter(f => verbose.checked || f.severity !== "info")
+    .sort((a, b) => ORDER[a.severity] - ORDER[b.severity]);
+  for (const f of items) {
+    const li = el("li", "sev-" + f.severity);
+    li.append(el("span", "tag", LABELS[f.severity]), document.createTextNode(f.message));
+    if (f.details.length) {
+      const ul = el("ul", "details");
+      f.details.forEach(d => ul.append(el("li", null, d)));
+      li.append(ul);
+    }
+    list.append(li);
+  }
+  if (items.length) card.append(list);
+  else card.append(el("p", "none", "Không phát hiện dấu hiệu bất thường."));
+  card._report = report;
+}
+
+async function check(file) {
+  const card = el("div", "card");
+  card.append(el("div", "name", file.name), el("p", "loading", "Đang phân tích…"));
+  results.prepend(card);
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/pdf", "X-Filename": encodeURIComponent(file.name) },
+      body: file,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    render(card, data);
+  } catch (err) {
+    card.replaceChildren(el("div", "name", file.name), el("p", "err", "Lỗi: " + err.message));
+  }
+}
+
+function handle(files) {
+  [...files].forEach(check);
+  input.value = "";
+}
+
+input.addEventListener("change", () => handle(input.files));
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => handle(e.dataTransfer.files));
+verbose.addEventListener("change", () => {
+  document.querySelectorAll(".card").forEach(c => c._report && render(c, c._report));
+});
+</script>
+</body>
+</html>

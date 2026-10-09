@@ -22,6 +22,19 @@ python -m statement_checker *.pdf -v                # hiện cả mục thông t
 python -m statement_checker sao_ke.pdf --json       # xuất JSON để tích hợp hệ thống khác
 ```
 
+### Giao diện web
+
+```bash
+python -m statement_checker.web                 # mở http://127.0.0.1:8000
+python -m statement_checker.web --host 0.0.0.0 --port 8080   # cho máy khác trong mạng LAN truy cập
+```
+
+Kéo thả hoặc chọn một/nhiều file PDF; mỗi file hiện điểm rủi ro và danh sách dấu
+hiệu theo mức độ. Server chỉ dùng thư viện chuẩn của Python (không cần Flask),
+file tải lên được ghi tạm, phân tích rồi xoá ngay, tên file không được ghi log.
+Giới hạn 20 MB/file. Không có đăng nhập — đừng mở ra Internet công khai khi chưa
+đặt sau reverse proxy có xác thực.
+
 Mã thoát (exit code) là `2` nếu có file ở mức rủi ro CAO (điểm ≥ 50), ngược lại `0`.
 
 Dùng trong Python:
