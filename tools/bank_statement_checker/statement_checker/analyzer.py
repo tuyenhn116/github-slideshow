@@ -3,7 +3,7 @@
 import pdfplumber
 from pypdf import PdfReader
 
-from . import content_checks, pdf_checks
+from . import content_checks, excel_checks, pdf_checks
 from .models import Report
 
 
@@ -12,8 +12,20 @@ def analyze(path):
     with open(path, "rb") as fh:
         raw = fh.read()
 
+    suffix = str(path).lower().rsplit(".", 1)[-1]
+    if raw.startswith(b"PK\x03\x04") and suffix in ("xlsx", "xlsm"):
+        excel_checks.check_xlsx(path, report)
+        return report
+    if raw.startswith(b"\xd0\xcf\x11\xe0"):
+        report.add("structure", "info",
+                   "File Excel đời cũ (.xls) chưa được hỗ trợ ở bản Python - hãy dùng bản trình duyệt "
+                   "(browser/soi-sao-ke.html). Đừng mở rồi lưu lại thành .xlsx vì sẽ xoá dấu vết gốc.")
+        return report
+    if suffix in ("csv", "txt"):
+        excel_checks.check_csv(path, report)
+        return report
     if not raw.startswith(b"%PDF"):
-        report.add("structure", "high", "File không phải PDF hợp lệ (thiếu header %PDF)")
+        report.add("structure", "high", "File không phải PDF hay Excel hợp lệ")
         return report
 
     try:

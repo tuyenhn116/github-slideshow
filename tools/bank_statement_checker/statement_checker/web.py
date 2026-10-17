@@ -50,7 +50,8 @@ class Handler(BaseHTTPRequestHandler):
         data = self.rfile.read(length)
         name = os.path.basename(unquote(self.headers.get("X-Filename", "upload.pdf")))[:200]
 
-        fd, tmp = tempfile.mkstemp(suffix=".pdf")
+        ext = os.path.splitext(name)[1].lower()
+        fd, tmp = tempfile.mkstemp(suffix=ext if ext in (".pdf", ".xlsx", ".xlsm", ".xls", ".csv") else ".pdf")
         try:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(data)

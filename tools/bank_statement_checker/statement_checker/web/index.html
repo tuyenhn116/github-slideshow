@@ -58,12 +58,12 @@
 <body>
 <main>
   <h1>Kiểm tra sao kê ngân hàng</h1>
-  <p class="sub">Tải file PDF sao kê lên để tìm dấu hiệu chỉnh sửa hoặc làm giả.
+  <p class="sub">Tải file sao kê (PDF, Excel hoặc CSV) lên để tìm dấu hiệu chỉnh sửa hoặc làm giả.
     File chỉ được phân tích trên máy chủ này và bị xoá ngay sau khi kiểm tra.</p>
 
   <label id="drop">
-    <input id="file" type="file" accept="application/pdf,.pdf" multiple hidden>
-    <strong>Chọn file PDF</strong> hoặc kéo thả vào đây
+    <input id="file" type="file" accept=".pdf,.xlsx,.xlsm,.xls,.csv,application/pdf" multiple hidden>
+    <strong>Chọn file PDF, Excel hoặc CSV</strong> hoặc kéo thả vào đây
     <small>Có thể chọn nhiều file · tối đa 20 MB mỗi file</small>
   </label>
   <div class="opts"><label><input type="checkbox" id="verbose"> Hiện cả mục thông tin (metadata, font, số giao dịch nhận diện được)</label></div>
@@ -132,7 +132,7 @@ async function check(file) {
   try {
     const res = await fetch("/api/analyze", {
       method: "POST",
-      headers: { "Content-Type": "application/pdf", "X-Filename": encodeURIComponent(file.name) },
+      headers: { "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(file.name) },
       body: file,
     });
     const data = await res.json();

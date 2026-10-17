@@ -1,6 +1,6 @@
 # Công cụ phát hiện sao kê ngân hàng giả
 
-Công cụ dòng lệnh phân tích file **PDF sao kê ngân hàng** và chấm điểm rủi ro
+Công cụ phân tích file **sao kê ngân hàng dạng PDF, Excel (.xlsx, .xls) hoặc CSV** và chấm điểm rủi ro
 (0–100) dựa trên các dấu hiệu kỹ thuật thường gặp khi sao kê bị chỉnh sửa hoặc làm giả.
 
 > ⚠️ Kết quả chỉ là **cảnh báo**, không phải kết luận pháp lý. Khi có nghi ngờ,
@@ -10,12 +10,12 @@ Công cụ dòng lệnh phân tích file **PDF sao kê ngân hàng** và chấm 
 ## Dùng ngay trong trình duyệt (không cần cài gì)
 
 Mở file [`browser/soi-sao-ke.html`](browser/soi-sao-ke.html) bằng Chrome, Edge hoặc
-Firefox (tải file về máy rồi nháy đúp), sau đó kéo thả file PDF sao kê vào trang.
+Firefox (tải file về máy rồi nháy đúp), sau đó kéo thả file sao kê (PDF, .xlsx, .xls hoặc .csv) vào trang.
 File được đọc ngay trong trình duyệt, không gửi lên máy chủ nào. Trang cần mạng
-lần đầu để tải thư viện đọc PDF (pdf.js) từ cdnjs.
+lần đầu để tải thư viện đọc PDF (pdf.js) và Excel (SheetJS) từ cdnjs.
 
 Bản trình duyệt chạy cùng các bước kiểm tra như bản Python, kèm bảng đối soát số
-dư cho từng dòng giao dịch. Trang mở sẵn 4 file mẫu tự tạo để minh hoạ.
+dư cho từng dòng giao dịch. Trang mở sẵn 6 file mẫu tự tạo (4 PDF, 2 Excel) để minh hoạ.
 
 ## Cài đặt (bản Python)
 
@@ -27,7 +27,7 @@ pip install -r requirements.txt
 ## Sử dụng
 
 ```bash
-python -m statement_checker sao_ke.pdf              # báo cáo dạng văn bản
+python -m statement_checker sao_ke.pdf              # báo cáo dạng văn bản (cũng nhận .xlsx, .csv)
 python -m statement_checker *.pdf -v                # hiện cả mục thông tin (metadata, font...)
 python -m statement_checker sao_ke.pdf --json       # xuất JSON để tích hợp hệ thống khác
 ```
@@ -71,6 +71,11 @@ print(report.score, report.verdict)
 | Font & bố cục | Chữ bị viết đè lên chữ khác (che số cũ, gõ số mới) | Cao |
 | | Font hiếm chỉ dùng cho vài chữ số | TB |
 | | Cùng một font được nhúng nhiều subset khác nhau | TB |
+| Excel / CSV | Dòng dữ liệu bị ẩn (giấu giao dịch) | Cao |
+| | Người sửa cuối khác người tạo, ngày sửa khác ngày tạo | TB |
+| | Ô công thức trong dòng giao dịch (bản xuất ngân hàng chỉ chứa giá trị) | TB |
+| | Số tiền lưu dạng chữ thay vì số (gõ tay) | TB |
+| | Lưu bằng Excel/WPS/LibreOffice thay vì thư viện xuất file của hệ thống; cột/sheet bị ẩn; CSV không có metadata | Thấp |
 | Khác | File là ảnh scan, không có lớp văn bản | TB |
 | | File có chữ ký số → nhắc kiểm tra chữ ký trong Adobe Reader | Thông tin |
 
@@ -83,12 +88,22 @@ Bộ đối soát số dư nhận diện dòng giao dịch là dòng có ngày (
 được hỗ trợ. Nếu bố cục bảng quá khác thường khiến phần lớn dòng không đối soát
 được, công cụ chỉ báo "cần kiểm tra thủ công" thay vì kết luận giả mạo.
 
+Với Excel và CSV, công cụ tìm dòng tiêu đề có cột "Số dư"/"Balance" để biết cột nào
+là tiền (Ghi nợ, Ghi có, Số tiền, Debit, Credit...), nên số thứ tự và số tài khoản không
+bị nhầm là số tiền. Phần đối soát số dư giống hệt với PDF.
+
+> Đừng mở file Excel sao kê rồi bấm Lưu trước khi kiểm tra: Excel sẽ ghi đè người sửa
+> cuối và ngày sửa, làm mất dấu vết gốc.
+
 ## Giới hạn
 
 - File ảnh (JPG/PNG) hoặc PDF scan không đối soát được tự động.
 - Kẻ làm giả có thể tạo lại toàn bộ PDF bằng công cụ "sạch" với số liệu khớp nhau;
   khi đó chỉ xác minh với ngân hàng mới phát hiện được.
 - Chữ ký số chỉ được phát hiện, không được xác thực.
+- Bản Python chưa đọc được .xls đời cũ (cần thêm thư viện `xlrd`); bản trình duyệt đọc được.
+- Số "Dòng" trong báo cáo Excel/CSV là thứ tự dòng có dữ liệu, có thể lệch với số dòng
+  trong Excel nếu bảng có dòng trống.
 
 ## Kiểm thử
 
