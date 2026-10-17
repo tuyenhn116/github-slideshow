@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soi Sao Kê</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one inspection column — drop tray on top, one report card per file below, newest first. */
+  :root {
+    --paper: #eef2f1; --surface: #ffffff; --ink: #16252a; --muted: #56686d; --rule: #d3dbda;
+    --accent: #0d5c63; --accent-soft: #dcecec;
+    --crit: #b3261e; --high: #c9461d; --med: #a86c12; --low: #4b7426; --ok: #1d7a4c;
+    --on-dial: #ffffff;
+    --font-display: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1416; --surface: #162023; --ink: #e2eaea; --muted: #93a4a7; --rule: #283538;
+      --accent: #63bcc3; --accent-soft: #15302f;
+      --crit: #ff7b70; --high: #ff9468; --med: #e6b64c; --low: #a6cf70; --ok: #52c58c;
+      --on-dial: #0e1416; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1416; --surface: #162023; --ink: #e2eaea; --muted: #93a4a7; --rule: #283538;
+    --accent: #63bcc3; --accent-soft: #15302f;
+    --crit: #ff7b70; --high: #ff9468; --med: #e6b64c; --low: #a6cf70; --ok: #52c58c;
+    --on-dial: #0e1416; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-body); }
+  .wrap { max-width: 920px; margin: 0 auto; padding-block: 36px 64px;
+          padding-left: max(16px, env(safe-area-inset-left, 0px));
+          padding-right: max(16px, env(safe-area-inset-right, 0px));
+          display: grid; gap: 22px; }
+
+  header { display: grid; gap: 6px; }
+  .eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font: 700 clamp(28px, 5vw, 38px)/1.1 var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  .lede { margin: 0; color: var(--muted); max-width: 62ch; }
+  .lock { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ok);
+          font-weight: 500; }
+  .lock svg { flex: none; }
+
+  #tray { display: grid; gap: 6px; justify-items: center; text-align: center; cursor: pointer;
+          padding: 34px 18px; border-radius: 14px; background: var(--surface);
+          border: 1.5px dashed var(--rule); transition: border-color .15s, background .15s; }
+  #tray:hover, #tray.over, #tray:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+  #tray:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #tray .big { font: 600 17px/1.3 var(--font-display); }
+  #tray .big b { color: var(--accent); }
+  #tray small { color: var(--muted); }
+  #file { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between;
+         font-size: 14px; color: var(--muted); }
+  .bar label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+  .bar input { accent-color: var(--accent); width: 16px; height: 16px; }
+  button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer;
+                text-decoration: underline; text-underline-offset: 3px; }
+  button.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap > *, #results > *, .card > * { min-width: 0; }
+  #results { display: grid; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 18px 20px;
+          display: grid; gap: 14px; min-width: 0; }
+  .head { display: flex; gap: 16px; align-items: center; min-width: 0; }
+  .dial { position: relative; width: 68px; height: 68px; flex: none; }
+  .dial svg { display: block; transform: rotate(-90deg); }
+  .dial .num { position: absolute; inset: 0; display: grid; place-items: center;
+               font: 600 20px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+  .meta { display: grid; gap: 3px; min-width: 0; }
+  .fname { font-weight: 600; overflow-wrap: anywhere; }
+  .verdict { font-weight: 600; font-size: 14px; }
+  .chip { justify-self: start; font: 500 11px/1 var(--font-mono); letter-spacing: .06em; padding: 4px 7px;
+          border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .wait { color: var(--muted); font-size: 14px; }
+
+  .findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .f { border-left: 3px solid var(--muted); padding: 8px 12px; background: var(--paper);
+       border-radius: 0 8px 8px 0; min-width: 0; }
+  .f .tag { font: 500 11px/1 var(--font-mono); letter-spacing: .06em; margin-right: 8px; color: var(--muted); }
+  .f ul { margin: 5px 0 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
+  .f.critical { border-color: var(--crit); } .f.critical .tag { color: var(--crit); }
+  .f.high { border-color: var(--high); } .f.high .tag { color: var(--high); }
+  .f.medium { border-color: var(--med); } .f.medium .tag { color: var(--med); }
+  .f.low { border-color: var(--low); } .f.low .tag { color: var(--low); }
+  .clean { margin: 0; color: var(--ok); font-weight: 500; }
+  .err { margin: 0; color: var(--crit); }
+
+  details { border-top: 1px solid var(--rule); padding-top: 10px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: 14px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ledger { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { font: 500 11px/1.2 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  td.desc { white-space: normal; min-width: 160px; }
+  tr.bad td { color: var(--crit); }
+  .ok-mark { color: var(--ok); } .bad-mark { color: var(--crit); font-weight: 600; }
+
+  footer { color: var(--muted); font-size: 13px; display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 16px; }
+  footer p { margin: 0; max-width: 72ch; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Kiểm tra sao kê ngân hàng · PDF · Excel · CSV</span>
+    <h1>Soi Sao Kê</h1>
+    <p class="lede">Tìm dấu hiệu sao kê bị chỉnh sửa hoặc làm giả: số dư lũy kế không khớp, file từng được lưu lại bằng phần mềm chỉnh sửa, chữ bị viết đè, font lạ chèn vào số tiền, dòng Excel bị ẩn hoặc số dư tính bằng công thức.</p>
+    <span class="lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>File được đọc ngay trong trình duyệt của bạn, không tải lên máy chủ nào.</span>
+  </header>
+
+  <label id="tray" for="file">
+    <input id="file" type="file" accept=".pdf,.xlsx,.xlsm,.xls,.csv,application/pdf" multiple>
+    <span class="big"><b>Chọn file PDF, Excel hoặc CSV</b> hoặc kéo thả vào đây</span>
+    <small>Chọn được nhiều file cùng lúc · PDF tối đa 50 trang mỗi file</small>
+  </label>
+
+  <div class="bar">
+    <label for="verbose"><input type="checkbox" id="verbose"> Hiện cả mục thông tin (metadata, font, số dòng giao dịch)</label>
+    <span id="sampleNote">Đang hiện 6 file mẫu tự tạo (4 PDF, 2 Excel) để minh hoạ. <button class="link" id="clearSamples" type="button">Ẩn file mẫu</button></span>
+  </div>
+
+  <section id="results" aria-live="polite"></section>
+
+  <footer>
+    <p><strong>Cách đọc điểm:</strong> dưới 20 là thấp, 20–49 cần xác minh thêm, từ 50 trở lên có nhiều dấu hiệu bị sửa. Số dư không khớp hoặc ngày không tồn tại tự nó đã đủ 50 điểm.</p>
+    <p>Kết quả chỉ là cảnh báo dựa trên dấu hiệu kỹ thuật, không phải kết luận pháp lý. Một file giả được dựng lại hoàn toàn với số liệu khớp nhau có thể không bị phát hiện. Khi nghi ngờ, hãy xác minh trực tiếp với ngân hàng phát hành.</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+"use strict";
+const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const SAMPLES = {"Mẫu 1 · sao kê gốc.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0NvbnRlbnRzIDcgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgNiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNCAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MTAxNzA5MDMzNiswMCcwMCcpIC9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAodW50aXRsZWQpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDMgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNgo+PgpzdHJlYW0KR2FzYWxiQVAwTiZBN1RMRikzQVdYPmI7RF4hVl87J2FQPEUjNk03QVhbaykqXnUnPy05TWo5UCdQMWpYQjRjQChZNk4rSFgxMTRtY09TRSolRiZqYWNwZW5fLTBCKWNidTluaj4/NihPNlxuPFdPMTxyZ2VsXi9UQigmajdYXzAuSEBUMSZvNWFoZGJfXko6SmlQKzdscmJGcCxmLW1qVll0biRqUz1jVVksLShXW0BUWDsjVmtnNGFDdGJTT0RxSlcoakJqbFhXQzUidXBqYSFCS0ZMQilKUEwjK2htL1tKZEdjPCRPWVdlV0FPajkkZlUmWyVKKWlSMCxpaSteQDRRLiJEMiMqdGdeImcwSGVcMXE0SVRzYS9xbDxnJiFLSm1ubFI5S1BpNVQ7M1ZNSTZhJlBpSS5CRVVkTFEsXFA3c01VJ1JdKFxGUGVASm9vZnR1a28lOTRQV3BhWFBNcCFwQ1liZ1tfbj9iSCNEX25pJGN1JSEiRUE3Lmo2VE1MLTcuLzRXOmxUITknOWNlKm9CVEV+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDYxIDAwMDAwIG4gCjAwMDAwMDAwOTIgMDAwMDAgbiAKMDAwMDAwMDE5OSAwMDAwMCBuIAowMDAwMDAwNDAyIDAwMDAwIG4gCjAwMDAwMDA0NzAgMDAwMDAgbiAKMDAwMDAwMDc1MCAwMDAwMCBuIAowMDAwMDAwODA5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDYxNGE2YjZlZWRhZWQ1ODkwMDE0Y2NmOWNkNDdmMDI3Pjw2MTRhNmI2ZWVkYWVkNTg5MDAxNGNjZjljZDQ3ZjAyNz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNSAwIFIKL1Jvb3QgNCAwIFIKL1NpemUgOAo+PgpzdGFydHhyZWYKMTMwNQolJUVPRgo=", "Mẫu 2 · bị sửa một số dư.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0NvbnRlbnRzIDcgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgNiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNCAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MTAxNzA5MDMzNiswMCcwMCcpIC9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAodW50aXRsZWQpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDMgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNQo+PgpzdHJlYW0KR2FzYWxiPixyLyZBN2BmanA0TWZdLE5oK1wtNWg3Qz1PQmoqc2A9O0pzb3I1NmlTMmQwcllfMC4+aF1pb0MuIlYlISFIQWo4SzxIPjBOVFYvP2c0KFhZZkFfOTA8I1ZWZztYT1g2XiFIK1g0Q0JgNkJwZkBeVWtgP0VuaDAtNihgTT0yTSsqLzpmXzwsKVU7SV5MNk8wQ0ZnWzU7J04nJlYlcF9qJidlMmZlVUtlPENrcz9YaWprMDdEQ0VbQ108OTw5JzttczgsPjBzWlROSzBBOTQ5VnMnJT4hSUNyVXQzQTUoMDxDIyxSPycyaixCO2RRJFAkXy5dRS4uWF9tPG5KJXJOL11VQCQ+TyxWTzZLU2dbKlQqNiksJklhLTtAJW1aLjtvKGEvTWA/QTFsUCNXZVNsL2Jea1lnPGNESW9BRmVCP2VNLGUzPzYyUGsrOzZNVW0pRVVPbExhM2NRVCIyZWBEJktYL1BuM0kodDFQPCNQMWgrTjQqLVhtZDBjb3BKbEw7VDRCO19aUUg9SGxXKn4+ZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNjEgMDAwMDAgbiAKMDAwMDAwMDA5MiAwMDAwMCBuIAowMDAwMDAwMTk5IDAwMDAwIG4gCjAwMDAwMDA0MDIgMDAwMDAgbiAKMDAwMDAwMDQ3MCAwMDAwMCBuIAowMDAwMDAwNzUwIDAwMDAwIG4gCjAwMDAwMDA4MDkgMDAwMDAgbiAKdHJhaWxlcgo8PAovSUQgCls8YjJjYjBlMTI4MzM3NzEzNTk2NzM3MGE1NWJhYzJlMGM+PGIyY2IwZTEyODMzNzcxMzU5NjczNzBhNTViYWMyZTBjPl0KJSBSZXBvcnRMYWIgZ2VuZXJhdGVkIFBERiBkb2N1bWVudCAtLSBkaWdlc3QgKG9wZW5zb3VyY2UpCgovSW5mbyA1IDAgUgovUm9vdCA0IDAgUgovU2l6ZSA4Cj4+CnN0YXJ0eHJlZgoxMzA0CiUlRU9GCg==", "Mẫu 3 · lưu lại bằng iLovePDF.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0NvbnRlbnRzIDcgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgNiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNCAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MTAxNzA5MDMzNiswMCcwMCcpIC9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAodW50aXRsZWQpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDMgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNgo+PgpzdHJlYW0KR2FzYWxiQVAwTiZBN1RMRikzQVdYPmI7RF4hVl87J2FQPEUjNk03QVhbaykqXnUnPy05TWo5UCdQMWpYQjRjQChZNk4rSFgxMTRtY09TRSolRiZqYWNwZW5fLTBCKWNidTluaj4/NihPNlxuPFdPMTxyZ2VsXi9UQigmajdYXzAuSEBUMSZvNWFoZGJfXko6SmlQKzdscmJGcCxmLW1qVll0biRqUz1jVVksLShXW0BUWDsjVmtnNGFDdGJTT0RxSlcoakJqbFhXQzUidXBqYSFCS0ZMQilKUEwjK2htL1tKZEdjPCRPWVdlV0FPajkkZlUmWyVKKWlSMCxpaSteQDRRLiJEMiMqdGdeImcwSGVcMXE0SVRzYS9xbDxnJiFLSm1ubFI5S1BpNVQ7M1ZNSTZhJlBpSS5CRVVkTFEsXFA3c01VJ1JdKFxGUGVASm9vZnR1a28lOTRQV3BhWFBNcCFwQ1liZ1tfbj9iSCNEX25pJGN1JSEiRUE3Lmo2VE1MLTcuLzRXOmxUITknOWNlKm9CVEV+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDYxIDAwMDAwIG4gCjAwMDAwMDAwOTIgMDAwMDAgbiAKMDAwMDAwMDE5OSAwMDAwMCBuIAowMDAwMDAwNDAyIDAwMDAwIG4gCjAwMDAwMDA0NzAgMDAwMDAgbiAKMDAwMDAwMDc1MCAwMDAwMCBuIAowMDAwMDAwODA5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDYxNGE2YjZlZWRhZWQ1ODkwMDE0Y2NmOWNkNDdmMDI3Pjw2MTRhNmI2ZWVkYWVkNTg5MDAxNGNjZjljZDQ3ZjAyNz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNSAwIFIKL1Jvb3QgNCAwIFIKL1NpemUgOAo+PgpzdGFydHhyZWYKMTMwNQolJUVPRgo1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykKL0NyZWF0aW9uRGF0ZSAoRFwwNzIyMDI2MTAxNzA5MDMzNlwwNTMwMFwwNDcwMFwwNDcpCi9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKQovS2V5d29yZHMgKCkKL01vZERhdGUgKERcMDcyMjAyNjEwMTcwOTAzMzZcMDUzMDBcMDQ3MDBcMDQ3KQovUHJvZHVjZXIgKGlMb3ZlUERGKQovU3ViamVjdCAodW5zcGVjaWZpZWQpCi9UaXRsZSAodW50aXRsZWQpCi9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKOCAwIG9iajw8Ci9UeXBlIC9YUmVmCi9TaXplIDkKL1Jvb3QgNCAwIFIKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL0luZGV4IFsgNSAxIF0KL1cgWyAxIDQgMSBdCi9JbmZvIDUgMCBSCi9QcmV2IDEzMDUKL0lEIFsgPDYxNGE2YjZlZWRhZWQ1ODkwMDE0Y2NmOWNkNDdmMDI3PiA8NjE0YTZiNmVlZGFlZDU4OTAwMTRjY2Y5Y2Q0N2YwMjc+IF0KL0xlbmd0aCAxNAo+PgpzdHJlYW0KeJxjZGBg62EAAAE2AJQKZW5kc3RyZWFtCmVuZG9iagpzdGFydHhyZWYKMTk0NwolJUVPRgo=", "Mẫu 4 · viết đè số tiền.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvQ291cmllciAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjIgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iago0IDAgb2JqCjw8Ci9Db250ZW50cyA4IDAgUiAvTWVkaWFCb3ggWyAwIDAgNTk1LjI3NTYgODQxLjg4OTggXSAvUGFyZW50IDcgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL1BhZ2VNb2RlIC9Vc2VOb25lIC9QYWdlcyA3IDAgUiAvVHlwZSAvQ2F0YWxvZwo+PgplbmRvYmoKNiAwIG9iago8PAovQXV0aG9yIChhbm9ueW1vdXMpIC9DcmVhdGlvbkRhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvQ3JlYXRvciAoQ29yZUJhbmtpbmcgU3RhdGVtZW50IEVuZ2luZSkgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMDE3MDkwMzM2KzAwJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0NTIKPj4Kc3RyZWFtCkdhc2FtOFQnLzcnXSFoZltxbTs+WiZSI1Q/IT0oPlBwZmVSKFNJMGVYKzFuPDc7aCJERUJtTmtLV3BSOkxCIkttIlpTWl5OblpBWkFoYS9wJi8rKypUcFVGN0BXJmpVNExhcGZSMiZJXkVDPzx0Y1puMGZlbF4uKUFtXFlmWSVLOHRAJEFKWl5rTUVHJWAwV0NMQT9DZzRES1AzZSZcZEVZWSw/JGhIbjxpRUdqWk9AU2RaSVM4cD9MPmNNdEdPOj9BOWpPay1zMW5kZGZHLmMuMignY11ja15jP0ovYDNpTnMzbSx1PXNUcURQdEkqLmpmbjJmRVNHLTlTblEzblVhJm86J0FBQyZlJDlgZzlfWGs7O0U7LEYiKXAjXTs9dWFATGY9ayJCVTtWJW8tRDU2UDRiV04jVkYnNUIyTUo1TDNjN2JIX0UxW0xRY1QuJ19bJzlhUTBRVWIjSWNXMmdwcTJZVG9JNHA7PjoqLUA6WnVbNm8tbC1SSmAtLDhlY2xDSD9LP2o8cl1GWFw7UnJgOSQyb0EvJDM6K2dgYCZNcCEvc004dV9KL19mI0pwPiUnOGUicCU2VUQoOilnUSlBM34+ZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgOQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNjEgMDAwMDAgbiAKMDAwMDAwMDEwMiAwMDAwMCBuIAowMDAwMDAwMjA5IDAwMDAwIG4gCjAwMDAwMDAzMTQgMDAwMDAgbiAKMDAwMDAwMDUxNyAwMDAwMCBuIAowMDAwMDAwNTg1IDAwMDAwIG4gCjAwMDAwMDA4NjUgMDAwMDAgbiAKMDAwMDAwMDkyNCAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9JRCAKWzwyNDUzNDJiNWQwZTZhOTRjNGU5NWU2MmRkNzYxNmYxYz48MjQ1MzQyYjVkMGU2YTk0YzRlOTVlNjJkZDc2MTZmMWM+XQolIFJlcG9ydExhYiBnZW5lcmF0ZWQgUERGIGRvY3VtZW50IC0tIGRpZ2VzdCAob3BlbnNvdXJjZSkKCi9JbmZvIDYgMCBSCi9Sb290IDUgMCBSCi9TaXplIDkKPj4Kc3RhcnR4cmVmCjE0NjYKJSVFT0YK", "Mẫu 5 · Excel gốc.xlsx": "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", "Mẫu 6 · Excel bị sửa và lưu lại.xlsx": "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"};
+
+const SEV = {
+  critical: { w: 50, label: "RẤT CAO", order: 0 },
+  high:     { w: 30, label: "CAO", order: 1 },
+  medium:   { w: 15, label: "TRUNG BÌNH", order: 2 },
+  low:      { w: 5,  label: "THẤP", order: 3 },
+  info:     { w: 0,  label: "THÔNG TIN", order: 4 },
+};
+const MAX_PAGES = 50;
+
+const EDITORS = ["photoshop", "illustrator", "gimp", "canva", "ilovepdf", "smallpdf", "sejda",
+  "pdfescape", "pdf-xchange", "foxit phantompdf", "foxit pdf editor", "nitro", "pdfelement",
+  "wondershare", "inkscape", "libreoffice", "openoffice", "microsoft word", "microsoft® word",
+  "microsoft excel", "microsoft® excel", "wps", "pdffiller", "docfly", "pdf candy", "soda pdf",
+  "abbyy finereader", "acrobat pro", "adobe acrobat", "pdf24", "paint", "pixlr", "fotor"];
+const SUSPICIOUS_ANNOTS = new Set(["FreeText", "Square", "Stamp", "Ink", "Redact", "Widget"]);
+
+const DATE_RE = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b|\b(\d{4})-(\d{2})-(\d{2})\b/;
+const DATE_RE_G = new RegExp(DATE_RE.source, "g");
+const AMOUNT_RE = /(?<![\w.,])[-+]?(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+[.,]\d{2}|0)(?![\w]|[.,]\d)/g;
+const OPENING_RE = /(số dư đầu kỳ|so du dau ky|opening balance|balance brought forward|số dư đầu)/i;
+const CLOSING_RE = /(số dư cuối kỳ|so du cuoi ky|closing balance|ending balance|số dư cuối)/i;
+const SUBSET_RE = /^[A-Z]{6}\+/;
+
+/* ---------- report ---------- */
+class Report {
+  constructor(name) { this.name = name; this.findings = []; this.ledger = null; }
+  add(check, severity, message, details = []) { this.findings.push({ check, severity, message, details }); }
+  get score() { return Math.min(100, this.findings.reduce((s, f) => s + SEV[f.severity].w, 0)); }
+  get level() { return this.score >= 50 ? "high" : this.score >= 20 ? "mid" : "low"; }
+  get verdict() {
+    return { high: "CAO · nhiều dấu hiệu chỉnh sửa/giả mạo",
+             mid: "TRUNG BÌNH · có điểm bất thường, cần xác minh thêm",
+             low: "THẤP · chưa thấy dấu hiệu bất thường rõ ràng" }[this.level];
+  }
+}
+
+/* ---------- money & dates (amounts kept as integer cents) ---------- */
+function parseAmount(token) {
+  token = token.trim();
+  const sign = token.startsWith("-") ? -1 : 1;
+  token = token.replace(/^[+-]/, "");
+  const last = Math.max(token.lastIndexOf("."), token.lastIndexOf(","));
+  let value;
+  if (last >= 0) {
+    const tail = token.slice(last + 1);
+    if (tail.length === 1 || tail.length === 2) {
+      value = Number(token.slice(0, last).replace(/[.,]/g, "") + "." + tail);
+    } else {
+      value = Number(token.replace(/[.,]/g, ""));
+    }
+  } else {
+    value = Number(token);
+  }
+  return Number.isFinite(value) ? sign * Math.round(value * 100) : null;
+}
+const fmt = cents => (cents / 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+
+function parseDate(m) {
+  let y, mo, d;
+  if (m[4]) { y = +m[4]; mo = +m[5]; d = +m[6]; }
+  else { d = +m[1]; mo = +m[2]; y = +m[3]; if (y < 100) y += 2000; }
+  const dt = new Date(y, mo - 1, d);
+  return (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) ? dt : null;
+}
+
+function pdfDate(s) {
+  if (!s) return null;
+  try { return pdfjsLib.PDFDateString.toDateObject(s); } catch { return null; }
+}
+
+/* ---------- PDF reading ---------- */
+async function readPdf(bytes) {
+  const doc = await pdfjsLib.getDocument({ data: bytes.slice(), fontExtraProperties: true,
+                                          isEvalSupported: false, disableFontFace: true, verbosity: 0 }).promise;
+  const meta = await doc.getMetadata().catch(() => ({}));
+  const pages = [];
+  const count = Math.min(doc.numPages, MAX_PAGES);
+  for (let i = 1; i <= count; i++) {
+    const page = await doc.getPage(i);
+    await page.getOperatorList().catch(() => null);  // resolves real font names into commonObjs
+    const text = await page.getTextContent();
+    const annots = await page.getAnnotations().catch(() => []);
+    const fontNames = {};
+    for (const it of text.items) {
+      if (!it.fontName || it.fontName in fontNames) continue;
+      let real = it.fontName;
+      try { const f = page.commonObjs.get(it.fontName); if (f && f.name) real = f.name; } catch {}
+      fontNames[it.fontName] = real;
+    }
+    const items = text.items
+      .filter(it => typeof it.str === "string" && it.str.trim())
+      .map(it => {
+        const h = Math.abs(it.transform[3]) || it.height || 10;
+        return { str: it.str, x0: it.transform[4], x1: it.transform[4] + it.width, y: it.transform[5], h,
+                 font: fontNames[it.fontName] || it.fontName || "?" };
+      });
+    pages.push({ items, annots });
+  }
+  return { meta, pages, numPages: doc.numPages };
+}
+
+function buildLines(items) {
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x0 - b.x0);
+  const lines = [];
+  for (const it of sorted) {
+    const line = lines[lines.length - 1];
+    if (line && Math.abs(line.y - it.y) <= Math.max(2, it.h * 0.5)) line.items.push(it);
+    else lines.push({ y: it.y, items: [it] });
+  }
+  return lines.map(l => {
+    l.items.sort((a, b) => a.x0 - b.x0);
+    let s = "", prev = null;
+    for (const it of l.items) {
+      if (prev && it.x0 - prev.x1 > it.h * 0.25) s += " ";
+      s += it.str; prev = it;
+    }
+    return s;
+  });
+}
+
+/* ---------- file-level checks ---------- */
+const findEditors = t => EDITORS.filter(e => (t || "").toLowerCase().includes(e));
+
+function checkMetadata(meta, raw, r) {
+  const info = meta.info || {};
+  const producer = info.Producer || "", creator = info.Creator || "";
+  const created = pdfDate(info.CreationDate), modified = pdfDate(info.ModDate);
+  r.add("metadata", "info", "Thông tin metadata", [
+    `Producer: ${producer || "(trống)"}`, `Creator: ${creator || "(trống)"}`,
+    `Ngày tạo: ${created ? created.toLocaleString("vi-VN") : "(trống)"}`,
+    `Ngày sửa: ${modified ? modified.toLocaleString("vi-VN") : "(trống)"}`]);
+
+  if (!producer && !creator)
+    r.add("metadata", "low", "Metadata Producer/Creator bị xoá trống, có thể đã bị làm sạch để che dấu vết");
+
+  const editors = findEditors(producer + " " + creator);
+  if (editors.length)
+    r.add("metadata", "high", "File được tạo hoặc lưu bằng phần mềm chỉnh sửa, không phải hệ thống ngân hàng",
+          [`Phát hiện: ${editors.join(", ")}`]);
+
+  let xmp = "";
+  try { xmp = (meta.metadata && meta.metadata.getRaw && meta.metadata.getRaw()) || ""; } catch {}
+  const tools = new Set();
+  for (const src of [raw, xmp])
+    for (const m of src.matchAll(/(?:CreatorTool|softwareAgent)["'=>\s]*([^<"']{2,120})/g)) tools.add(m[1].trim());
+  const xmpEditors = [...new Set([...tools].flatMap(findEditors))].filter(e => !editors.includes(e));
+  if (xmpEditors.length)
+    r.add("metadata", "high", "Lịch sử XMP cho thấy file từng được mở hoặc lưu bằng phần mềm chỉnh sửa",
+          [`Phát hiện: ${xmpEditors.join(", ")}`, ...[...tools].slice(0, 5)]);
+
+  if (created && modified) {
+    const delta = modified - created;
+    if (delta > 5 * 60e3) {
+      const days = Math.floor(delta / 864e5), hours = Math.round((delta % 864e5) / 36e5);
+      r.add("metadata", "medium", "Ngày sửa khác ngày tạo: file đã được lưu lại sau khi xuất",
+            [`Chênh lệch: ${days} ngày ${hours} giờ`]);
+    } else if (delta < -60e3) {
+      r.add("metadata", "medium", "Ngày sửa sớm hơn ngày tạo: metadata không nhất quán");
+    }
+  }
+  const soon = Date.now() + 864e5;
+  if (created && created > soon) r.add("metadata", "medium", "Ngày tạo file nằm trong tương lai");
+  if (modified && modified > soon) r.add("metadata", "medium", "Ngày sửa file nằm trong tương lai");
+}
+
+function checkRevisions(raw, r) {
+  const eof = (raw.match(/%%EOF/g) || []).length;
+  const linearized = raw.slice(0, 2048).includes("/Linearized");
+  const revisions = eof - (linearized && eof > 1 ? 1 : 0);
+  if (revisions > 1)
+    r.add("structure", "high", `File có ${revisions} phiên bản lưu: nội dung đã bị sửa sau khi tạo`,
+          ["Sao kê xuất trực tiếp từ ngân hàng thường chỉ có 1 phiên bản"]);
+  else if (raw.includes("/Prev") && !linearized)
+    r.add("structure", "low", "Bảng xref có tham chiếu /Prev, có dấu hiệu từng được cập nhật");
+}
+
+function checkAnnotations(pages, r) {
+  const found = {}, sigs = [];
+  for (const p of pages) for (const a of p.annots) {
+    if (a.subtype === "Widget" && a.fieldType === "Sig") { sigs.push(a.fieldName || "chữ ký"); continue; }
+    if (SUSPICIOUS_ANNOTS.has(a.subtype)) found[a.subtype] = (found[a.subtype] || 0) + 1;
+  }
+  if (sigs.length)
+    r.add("signature", "info", "File có chữ ký số. Hãy mở bằng Adobe Reader để kiểm tra chữ ký còn hợp lệ không",
+          [`Trường chữ ký: ${sigs.join(", ")}`]);
+  const keys = Object.keys(found);
+  if (keys.length)
+    r.add("structure", "high", "Có chú thích hoặc ô nhập đặt đè lên trang (thường dùng để che và viết đè số liệu)",
+          keys.map(k => `${k}: ${found[k]}`));
+}
+
+function checkFonts(pages, r) {
+  const chars = {}, samples = {}, subsets = {};
+  let total = 0;
+  for (const p of pages) for (const it of p.items) {
+    const n = it.str.replace(/\s/g, "").length;
+    if (!n) continue;
+    total += n;
+    chars[it.font] = (chars[it.font] || 0) + n;
+    if ((samples[it.font] || "").length < 40) samples[it.font] = (samples[it.font] || "") + it.str.replace(/\s/g, "");
+    if (SUBSET_RE.test(it.font)) (subsets[it.font.slice(7)] ||= new Set()).add(it.font.slice(0, 6));
+  }
+  if (!total) return;
+  const ranked = Object.entries(chars).sort((a, b) => b[1] - a[1]);
+  r.add("fonts", "info", `Số font được dùng: ${ranked.length}`, ranked.slice(0, 10).map(([n, c]) => `${n}: ${c} ký tự`));
+
+  for (const [base, set] of Object.entries(subsets))
+    if (set.size > 1)
+      r.add("fonts", "medium", `Font "${base}" được nhúng ${set.size} lần với subset khác nhau: dấu hiệu nội dung được ghép hoặc sửa bằng công cụ khác`,
+            [`Subset: ${[...set].sort().join(", ")}`]);
+
+  for (const [name, count] of ranked) {
+    const s = samples[name] || "";
+    const digits = (s.match(/\d/g) || []).length;
+    if (count / total < 0.1 && count <= 60 && digits >= Math.max(3, s.length * 0.6))
+      r.add("fonts", "medium", `Font hiếm "${name}" chỉ dùng cho ${count} ký tự, chủ yếu là chữ số: có thể số tiền hoặc số dư đã bị sửa`,
+            [`Mẫu: ${s}`]);
+  }
+  if (ranked.length > 8) r.add("fonts", "low", `Dùng quá nhiều font (${ranked.length}) so với sao kê thông thường`);
+}
+
+function checkOverlap(pages, r) {
+  const hits = [];
+  pages.forEach((p, idx) => {
+    const rows = {};
+    for (const it of p.items) (rows[Math.round(it.y / 3)] ||= []).push(it);
+    for (const row of Object.values(rows)) {
+      row.sort((a, b) => a.x0 - b.x0);
+      for (let i = 1; i < row.length; i++) {
+        const a = row[i - 1], b = row[i];
+        const overlap = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+        const narrow = Math.min(a.x1 - a.x0, b.x1 - b.x0) || 1;
+        if (overlap / narrow >= 0.6 && (a.str !== b.str || a.font !== b.font))
+          hits.push(`Trang ${idx + 1}: "${a.str.trim()}" chồng lên "${b.str.trim()}"`);
+      }
+    }
+  });
+  if (hits.length) r.add("overlay", "high", `Phát hiện ${hits.length} vị trí chữ bị viết đè lên chữ khác`, hits.slice(0, 5));
+}
+
+/* ---------- content checks ---------- */
+function extractRows(lines) {
+  const rows = [];
+  lines.forEach((line, i) => {
+    const dm = line.match(DATE_RE);
+    if (!dm) return;
+    const rest = line.replace(DATE_RE_G, " ");
+    const amounts = [...rest.matchAll(AMOUNT_RE)].map(m => parseAmount(m[0])).filter(v => v !== null);
+    if (amounts.length < 2) return;
+    rows.push({ line: i + 1, text: line.trim(), date: parseDate(dm), rawDate: dm[0], amounts,
+                balance: amounts[amounts.length - 1] });
+  });
+  return rows;
+}
+const explains = (row, diff) => row.amounts.slice(0, -1).some(a => Math.abs(Math.abs(a) - Math.abs(diff)) <= 1);
+
+function balanceBreaks(rows) {
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const diff = rows[i].balance - rows[i - 1].balance;
+    if (!explains(rows[i], diff)) out.push({ prev: rows[i - 1], cur: rows[i], diff });
+  }
+  return out;
+}
+function labelled(lines, re) {
+  for (const l of lines) if (re.test(l)) {
+    const m = [...l.replace(DATE_RE_G, " ").matchAll(AMOUNT_RE)];
+    if (m.length) return parseAmount(m[m.length - 1][0]);
+  }
+  return null;
+}
+
+function checkContent(lines, numPages, r) {
+  const chars = lines.reduce((s, l) => s + l.trim().length, 0);
+  if (numPages !== null && chars < 50 * Math.max(1, numPages)) {
+    r.add("content", "medium", "File gần như không có lớp văn bản (ảnh chụp hoặc scan), không đối soát tự động được",
+          ["Sao kê điện tử thật từ ngân hàng hầu như luôn có chữ chọn được.",
+           "Hãy yêu cầu bản PDF gốc hoặc xác minh trực tiếp với ngân hàng."]);
+    return;
+  }
+  const rows = extractRows(lines);
+  if (rows.length < 2) { r.add("content", "info", "Không nhận diện được bảng giao dịch để đối soát số dư"); return; }
+
+  const fwd = balanceBreaks(rows), bwd = balanceBreaks([...rows].reverse());
+  const ascending = fwd.length <= bwd.length;
+  const breaks = ascending ? fwd : bwd;
+  const ordered = ascending ? rows : [...rows].reverse();
+  const bad = new Set(breaks.map(b => b.cur));
+  r.ledger = ordered.map((row, i) => ({ row, ok: i === 0 ? null : !bad.has(row) }));
+
+  r.add("content", "info", `Nhận diện ${rows.length} dòng giao dịch`, rows.slice(0, 3).map(x => x.text.slice(0, 100)));
+  if (breaks.length) {
+    const ratio = breaks.length / (rows.length - 1);
+    const details = breaks.slice(0, 8).map(b =>
+      `Dòng ${b.cur.line}: số dư ${fmt(b.prev.balance)} → ${fmt(b.cur.balance)} (chênh ${fmt(b.diff)}) không khớp số tiền nào trên dòng`);
+    if (ratio > 0.7 && rows.length >= 6) {
+      r.ledger = null;
+      r.add("content", "info", "Không đối soát được số dư vì bố cục bảng không chuẩn, cần kiểm tra thủ công", details.slice(0, 3));
+    } else {
+      r.add("content", "critical", `Số dư lũy kế không khớp ở ${breaks.length}/${rows.length - 1} giao dịch: dấu hiệu số tiền hoặc số dư bị sửa`, details);
+    }
+  } else {
+    r.add("content", "info", "Số dư lũy kế khớp với toàn bộ giao dịch");
+  }
+
+  const opening = labelled(lines, OPENING_RE);
+  if (opening !== null && !explains(ordered[0], ordered[0].balance - opening))
+    r.add("content", "high", "Số dư đầu kỳ không khớp với giao dịch đầu tiên",
+          [`Đầu kỳ: ${fmt(opening)}; sau giao dịch đầu: ${fmt(ordered[0].balance)}`]);
+  const closing = labelled(lines, CLOSING_RE);
+  const last = ordered[ordered.length - 1];
+  if (closing !== null && Math.abs(closing - last.balance) > 1)
+    r.add("content", "high", "Số dư cuối kỳ không khớp với số dư của giao dịch cuối cùng",
+          [`Cuối kỳ: ${fmt(closing)}; giao dịch cuối: ${fmt(last.balance)}`]);
+
+  const invalid = rows.filter(x => !x.date);
+  if (invalid.length)
+    r.add("content", "critical", "Có ngày giao dịch không tồn tại (ví dụ 31/02)", invalid.slice(0, 5).map(x => `Dòng ${x.line}: ${x.rawDate}`));
+  const today = new Date(); today.setHours(23, 59, 59);
+  const future = rows.filter(x => x.date && x.date > today);
+  if (future.length)
+    r.add("content", "high", "Có giao dịch mang ngày trong tương lai", future.slice(0, 5).map(x => `Dòng ${x.line}: ${x.rawDate}`));
+  const dated = ordered.filter(x => x.date);
+  const disorder = [];
+  for (let i = 1; i < dated.length; i++) if (dated[i].date < dated[i - 1].date) disorder.push([dated[i - 1], dated[i]]);
+  if (disorder.length)
+    r.add("content", "medium", "Ngày giao dịch không theo thứ tự thời gian",
+          disorder.slice(0, 5).map(([a, b]) => `Dòng ${a.line} (${a.rawDate}) → dòng ${b.line} (${b.rawDate})`));
+}
+
+
+/* ---------- spreadsheets (.xlsx, .xls, .csv) ---------- */
+const BALANCE_HEADER = /số dư|so du|balance/i;
+const MONEY_HEADER = /số dư|so du|balance|ghi nợ|ghi có|ghi no|ghi co|nợ|có|debit|credit|số tiền|so tien|amount|rút|nộp|gửi|phát sinh|withdraw|deposit|thu|chi/i;
+const DESKTOP_APPS = ["microsoft excel", "microsoft macintosh excel", "wps", "libreoffice", "openoffice",
+  "numbers", "google sheets", "kingsoft"];
+const EXPORT_LIBRARIES = ["openpyxl", "apache poi", "npoi", "epplus", "aspose", "phpspreadsheet", "phpexcel",
+  "sheetjs", "closedxml", "xlsxwriter", "jxls", "jasperreports", "compatible"];
+const AMOUNT_FULL = new RegExp("^" + AMOUNT_RE.source + "$");
+
+// A cell becomes {v, date, f, isText}; dates are kept as dd/mm/yyyy text.
+function sheetCell(cell, csv) {
+  if (!cell) return null;
+  if (cell.v === undefined || cell.v === null || cell.v === "") return cell.f ? { v: "", f: cell.f } : null;
+  if (cell.t === "n" && cell.z && XLSX.SSF.is_date(cell.z)) {
+    const d = XLSX.SSF.parse_date_code(cell.v);
+    if (d) return { v: `${String(d.d).padStart(2, "0")}/${String(d.m).padStart(2, "0")}/${d.y}`, date: true, f: cell.f };
+  }
+  let v = cell.v;
+  if (csv && typeof v === "string" && /^[-+]?\d+(\.\d+)?$/.test(v.trim()) && v.trim().length < 16) v = Number(v);
+  return { v, date: typeof v === "string" && DATE_RE.test(v), f: cell.f, isText: cell.t === "s" };
+}
+
+function findHeader(rows) {
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const labels = rows[i].map(c => (c && typeof c.v === "string" && c.v.trim() && c.v.length < 40) ? c.v : "");
+    if (labels.filter(Boolean).length >= 3 && labels.some(t => t && BALANCE_HEADER.test(t)))
+      return new Set(labels.map((t, j) => (t && MONEY_HEADER.test(t)) ? j : -1).filter(j => j >= 0));
+  }
+  return null;
+}
+
+const money = v => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function rowsToLines(rows, moneyCols) {
+  const lines = [];
+  for (const row of rows) {
+    const inTable = !!moneyCols && row.some(c => c && c.date);
+    const parts = row.map((c, j) => {
+      if (!c) return "";
+      if (typeof c.v === "number") {
+        const isMoney = inTable ? moneyCols.has(j) : Math.abs(c.v) < 1e12;
+        return isMoney ? money(c.v) : (Number.isInteger(c.v) ? String(c.v) : String(c.v));
+      }
+      return String(c.v).trim();
+    }).filter(Boolean);
+    if (parts.length) lines.push(parts.join("  "));
+  }
+  return lines;
+}
+
+function checkSheetProps(wb, r) {
+  const p = wb.Props || {};
+  const app = p.Application || "";
+  const show = d => d instanceof Date && !isNaN(d) ? d.toLocaleString("vi-VN") : "(trống)";
+  r.add("metadata", "info", "Thông tin file Excel", [
+    `Ứng dụng: ${app || "(trống)"}`, `Người tạo: ${p.Author || "(trống)"}`,
+    `Người sửa cuối: ${p.LastAuthor || "(trống)"}`,
+    `Ngày tạo: ${show(p.CreatedDate)}`, `Ngày sửa: ${show(p.ModifiedDate)}`]);
+  if (p.LastAuthor && p.Author && p.LastAuthor !== p.Author)
+    r.add("metadata", "medium", "Người sửa cuối khác người tạo file: file đã được mở và lưu lại",
+          [`Tạo: ${p.Author}; sửa cuối: ${p.LastAuthor}`]);
+  else if (p.LastAuthor && !p.Author)
+    r.add("metadata", "low", `File có người sửa cuối (${p.LastAuthor}) nhưng trống người tạo`);
+  if (p.CreatedDate instanceof Date && p.ModifiedDate instanceof Date && p.ModifiedDate - p.CreatedDate > 5 * 60e3) {
+    const delta = p.ModifiedDate - p.CreatedDate;
+    r.add("metadata", "medium", "Ngày sửa khác ngày tạo: file đã được lưu lại sau khi xuất",
+          [`Chênh lệch: ${Math.floor(delta / 864e5)} ngày ${Math.round((delta % 864e5) / 36e5)} giờ`]);
+  }
+  const a = app.toLowerCase();
+  if (DESKTOP_APPS.some(x => a.includes(x)) && !EXPORT_LIBRARIES.some(x => a.includes(x)))
+    r.add("metadata", "low", `File được lưu bằng phần mềm bảng tính (${app}); bản xuất từ hệ thống ngân hàng thường do thư viện tạo ra`);
+}
+
+function analyzeSheet(bytes, kind, r) {
+  if (!window.XLSX) throw new Error("Không tải được thư viện đọc Excel. Kiểm tra kết nối mạng rồi tải lại trang.");
+  const csv = kind === "csv";
+  let wb;
+  try {
+    wb = csv
+      ? XLSX.read(new TextDecoder("utf-8").decode(bytes).replace(/^﻿/, ""), { type: "string", raw: true })
+      : XLSX.read(bytes, { type: "array", cellFormula: true, cellStyles: true, cellNF: true, cellDates: false });
+  } catch (e) {
+    r.add("structure", "high", `File bảng tính bị lỗi, không đọc được: ${e.message || e}`);
+    return;
+  }
+  if (csv) r.add("metadata", "low", "File CSV không có metadata và rất dễ sửa bằng tay; nên yêu cầu bản PDF gốc từ ngân hàng");
+  else checkSheetProps(wb, r);
+
+  const lines = [], formulas = [], hiddenRows = [], hiddenCols = [], textMoney = [];
+  const hiddenSheets = [];
+  wb.SheetNames.forEach((name, idx) => {
+    const ws = wb.Sheets[name];
+    if (wb.Workbook && wb.Workbook.Sheets && wb.Workbook.Sheets[idx] && wb.Workbook.Sheets[idx].Hidden) {
+      hiddenSheets.push(name); return;
+    }
+    if (!ws || !ws["!ref"]) return;
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    const rows = [];
+    for (let R = range.s.r; R <= Math.min(range.e.r, range.s.r + 20000); R++) {
+      const row = [];
+      for (let C = range.s.c; C <= range.e.c; C++) row.push(sheetCell(ws[XLSX.utils.encode_cell({ r: R, c: C })], csv));
+      rows.push(row);
+    }
+    const moneyCols = findHeader(rows);
+    lines.push(...rowsToLines(rows, moneyCols));
+
+    rows.forEach((row, i) => {
+      const R = range.s.r + i;
+      const hasDate = row.some(c => c && c.date);
+      row.forEach((c, j) => {
+        if (!c) return;
+        const ref = `${name}!${XLSX.utils.encode_cell({ r: R, c: range.s.c + j })}`;
+        if (hasDate && c.f) formulas.push(`${ref}: =${c.f}`);
+        if (!csv && hasDate && moneyCols && moneyCols.has(j) && c.isText && AMOUNT_FULL.test(String(c.v).trim()))
+          textMoney.push(`${ref}: '${c.v}'`);
+      });
+      const meta = ws["!rows"] && ws["!rows"][R];
+      if (meta && meta.hidden && row.some(Boolean)) hiddenRows.push(`${name}!dòng ${R + 1}`);
+    });
+    (ws["!cols"] || []).forEach((col, C) => { if (col && col.hidden) hiddenCols.push(`${name}!cột ${XLSX.utils.encode_col(C)}`); });
+  });
+
+  if (formulas.length)
+    r.add("excel", "medium", `Có ${formulas.length} ô công thức trong các dòng giao dịch; sao kê xuất từ ngân hàng chứa giá trị, không chứa công thức tự tính`, formulas.slice(0, 5));
+  if (hiddenRows.length)
+    r.add("excel", "high", `Có ${hiddenRows.length} dòng dữ liệu bị ẩn, có thể dùng để giấu giao dịch`, hiddenRows.slice(0, 5));
+  if (hiddenCols.length) r.add("excel", "low", `Có ${hiddenCols.length} cột bị ẩn`, hiddenCols.slice(0, 5));
+  if (hiddenSheets.length) r.add("excel", "low", `Có sheet bị ẩn: ${hiddenSheets.join(", ")}`);
+  if (textMoney.length)
+    r.add("excel", "medium", `Có ${textMoney.length} ô số tiền lưu dạng chữ thay vì số: dấu hiệu gõ tay vào file`, textMoney.slice(0, 5));
+
+  checkContent(lines, null, r);
+}
+
+function fileKind(name, raw) {
+  if (raw.startsWith("%PDF")) return "pdf";
+  if (raw.startsWith("PK\x03\x04")) return "xlsx";
+  if (raw.startsWith("\xd0\xcf\x11\xe0")) return "xls";
+  if (/\.(csv|txt)$/i.test(name)) return "csv";
+  return null;
+}
+
+/* ---------- orchestration ---------- */
+async function analyze(name, bytes) {
+  const r = new Report(name);
+  const raw = new TextDecoder("latin1").decode(bytes);
+  const kind = fileKind(name, raw);
+  if (!kind) { r.add("structure", "high", "File không phải PDF, Excel hay CSV hợp lệ"); return r; }
+  if (kind !== "pdf") { analyzeSheet(bytes, kind, r); return r; }
+  if (!window.pdfjsLib) throw new Error("Không tải được thư viện đọc PDF. Kiểm tra kết nối mạng rồi tải lại trang.");
+  let pdf;
+  try { pdf = await readPdf(bytes); }
+  catch (e) {
+    if (e && e.name === "PasswordException") r.add("structure", "medium", "File có mật khẩu nên không phân tích đầy đủ được");
+    else r.add("structure", "high", `Cấu trúc PDF bị lỗi, không đọc được: ${e && e.message || e}`);
+    return r;
+  }
+  checkMetadata(pdf.meta, raw, r);
+  checkRevisions(raw, r);
+  checkAnnotations(pdf.pages, r);
+  checkFonts(pdf.pages, r);
+  checkOverlap(pdf.pages, r);
+  const lines = pdf.pages.flatMap(p => buildLines(p.items));
+  checkContent(lines, pdf.pages.length, r);
+  if (pdf.numPages > MAX_PAGES) r.add("structure", "info", `Chỉ phân tích ${MAX_PAGES}/${pdf.numPages} trang đầu`);
+  return r;
+}
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+const results = $("results"), verbose = $("verbose");
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+const LEVEL_COLOR = { high: "var(--crit)", mid: "var(--med)", low: "var(--ok)" };
+
+function dial(score, color) {
+  const box = el("div", "dial");
+  const C = 2 * Math.PI * 29;
+  box.innerHTML = `<svg width="68" height="68" viewBox="0 0 68 68" aria-hidden="true">
+    <circle cx="34" cy="34" r="29" fill="none" stroke="var(--rule)" stroke-width="7"/>
+    <circle cx="34" cy="34" r="29" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${(C * Math.max(score, 1) / 100).toFixed(1)} ${C.toFixed(1)}"/></svg>`;
+  const num = el("div", "num", String(score));
+  num.style.color = color;
+  box.append(num);
+  box.setAttribute("role", "img");
+  box.setAttribute("aria-label", `Điểm rủi ro ${score} trên 100`);
+  return box;
+}
+
+function renderLedger(r) {
+  const d = el("details");
+  const okCount = r.ledger.filter(x => x.ok === false).length;
+  d.append(el("summary", null, `Bảng đối soát số dư · ${r.ledger.length} dòng${okCount ? ` · ${okCount} dòng lệch` : " · khớp hết"}`));
+  const wrap = el("div", "ledger");
+  const t = el("table");
+  t.innerHTML = "<thead><tr><th>Ngày</th><th>Nội dung</th><th>Số tiền</th><th>Số dư</th><th>Đối soát</th></tr></thead>";
+  const tb = el("tbody");
+  r.ledger.forEach(({ row, ok }) => {
+    const tr = el("tr", ok === false ? "bad" : "");
+    let desc = row.text.replace(row.rawDate, "");
+    for (const m of desc.match(AMOUNT_RE) || []) desc = desc.replace(m, "");
+    tr.append(el("td", null, row.rawDate), el("td", "desc", desc.replace(/\s+/g, " ").trim()),
+              el("td", "n", row.amounts.slice(0, -1).map(fmt).join(" / ")), el("td", "n", fmt(row.balance)));
+    const st = el("td");
+    st.append(ok === null ? el("span", null, "dòng đầu") : ok ? el("span", "ok-mark", "✓ khớp") : el("span", "bad-mark", "✗ lệch"));
+    tr.append(st); tb.append(tr);
+  });
+  t.append(tb); wrap.append(t); d.append(wrap);
+  if (okCount) d.open = true;
+  return d;
+}
+
+function render(card, r) {
+  card.replaceChildren();
+  const color = LEVEL_COLOR[r.level];
+  const head = el("div", "head");
+  const meta = el("div", "meta");
+  if (card.dataset.sample) meta.append(el("span", "chip", "FILE MẪU"));
+  const v = el("div", "verdict", `Mức rủi ro: ${r.verdict}`);
+  v.style.color = color;
+  meta.append(el("div", "fname", r.name), v);
+  head.append(dial(r.score, color), meta);
+  card.append(head);
+
+  const items = r.findings.filter(f => verbose.checked || f.severity !== "info")
+                          .sort((a, b) => SEV[a.severity].order - SEV[b.severity].order);
+  if (items.length) {
+    const ul = el("ul", "findings");
+    for (const f of items) {
+      const li = el("li", `f ${f.severity}`);
+      li.append(el("span", "tag", SEV[f.severity].label), document.createTextNode(f.message));
+      if (f.details.length) { const d = el("ul"); f.details.forEach(x => d.append(el("li", null, x))); li.append(d); }
+      ul.append(li);
+    }
+    card.append(ul);
+  } else {
+    card.append(el("p", "clean", "Không phát hiện dấu hiệu bất thường."));
+  }
+  if (r.ledger && r.ledger.length) card.append(renderLedger(r));
+  card._report = r;
+}
+
+async function check(name, bytes, sample = false) {
+  const card = el("article", "card");
+  if (sample) card.dataset.sample = "1";
+  card.append(el("div", "fname", name), el("p", "wait", "Đang phân tích…"));
+  sample ? results.append(card) : results.prepend(card);
+  try {
+    render(card, await analyze(name, bytes));
+  } catch (e) {
+    card.replaceChildren(el("div", "fname", name), el("p", "err", `Lỗi: ${e.message || e}`));
+  }
+}
+
+function clearSamples() {
+  results.querySelectorAll("[data-sample]").forEach(c => c.remove());
+  $("sampleNote").hidden = true;
+}
+
+async function handle(files) {
+  clearSamples();
+  for (const f of [...files]) {
+    if (!/\.(pdf|xlsx|xlsm|xls|csv)$/i.test(f.name) && f.type !== "application/pdf") {
+      const c = el("article", "card");
+      c.append(el("div", "fname", f.name), el("p", "err", "Chỉ nhận file PDF, Excel (.xlsx, .xls) hoặc CSV. Nếu sao kê là ảnh chụp, hãy xin ngân hàng bản PDF gốc."));
+      results.prepend(c); continue;
+    }
+    await check(f.name, new Uint8Array(await f.arrayBuffer()));
+  }
+}
+
+const tray = $("tray"), input = $("file");
+input.addEventListener("change", () => { handle(input.files); input.value = ""; });
+["dragenter", "dragover"].forEach(t => tray.addEventListener(t, e => { e.preventDefault(); tray.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => tray.addEventListener(t, e => { e.preventDefault(); tray.classList.remove("over"); }));
+tray.addEventListener("drop", e => handle(e.dataTransfer.files));
+verbose.addEventListener("change", () => results.querySelectorAll(".card").forEach(c => c._report && render(c, c._report)));
+$("clearSamples").addEventListener("click", clearSamples);
+
+(async function start() {
+  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  const names = Object.keys(SAMPLES);
+  if (!names.length) { $("sampleNote").hidden = true; return; }
+  for (const n of names) {
+    const bin = atob(SAMPLES[n]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    await check(n, bytes, true);
+  }
+})();
+</script>
+</body>
+</html>
