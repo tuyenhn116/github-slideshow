@@ -121,9 +121,14 @@ def check_annotations(reader, report):
     for page in reader.pages:
         for annot in page.get("/Annots") or []:
             try:
-                subtype = annot.get_object().get("/Subtype")
+                obj = annot.get_object()
+                subtype = obj.get("/Subtype")
+                parent = obj.get("/Parent")
+                field_type = obj.get("/FT") or (parent.get_object().get("/FT") if parent else None)
             except Exception:
                 continue
+            if subtype == "/Widget" and field_type == "/Sig":
+                continue  # digital signature box, reported by check_signatures
             if subtype in SUSPICIOUS_ANNOTS:
                 found[subtype] += 1
     if found:

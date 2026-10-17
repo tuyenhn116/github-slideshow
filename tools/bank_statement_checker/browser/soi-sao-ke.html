@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soi Sao Kê</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one inspection column — drop tray on top, one report card per file below, newest first. */
+  :root {
+    --paper: #eef2f1; --surface: #ffffff; --ink: #16252a; --muted: #56686d; --rule: #d3dbda;
+    --accent: #0d5c63; --accent-soft: #dcecec;
+    --crit: #b3261e; --high: #c9461d; --med: #a86c12; --low: #4b7426; --ok: #1d7a4c;
+    --on-dial: #ffffff;
+    --font-display: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1416; --surface: #162023; --ink: #e2eaea; --muted: #93a4a7; --rule: #283538;
+      --accent: #63bcc3; --accent-soft: #15302f;
+      --crit: #ff7b70; --high: #ff9468; --med: #e6b64c; --low: #a6cf70; --ok: #52c58c;
+      --on-dial: #0e1416; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1416; --surface: #162023; --ink: #e2eaea; --muted: #93a4a7; --rule: #283538;
+    --accent: #63bcc3; --accent-soft: #15302f;
+    --crit: #ff7b70; --high: #ff9468; --med: #e6b64c; --low: #a6cf70; --ok: #52c58c;
+    --on-dial: #0e1416; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-body); }
+  .wrap { max-width: 920px; margin: 0 auto; padding-block: 36px 64px;
+          padding-left: max(16px, env(safe-area-inset-left, 0px));
+          padding-right: max(16px, env(safe-area-inset-right, 0px));
+          display: grid; gap: 22px; }
+
+  header { display: grid; gap: 6px; }
+  .eyebrow { font: 500 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  h1 { font: 700 clamp(28px, 5vw, 38px)/1.1 var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  .lede { margin: 0; color: var(--muted); max-width: 62ch; }
+  .lock { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ok);
+          font-weight: 500; }
+  .lock svg { flex: none; }
+
+  #tray { display: grid; gap: 6px; justify-items: center; text-align: center; cursor: pointer;
+          padding: 34px 18px; border-radius: 14px; background: var(--surface);
+          border: 1.5px dashed var(--rule); transition: border-color .15s, background .15s; }
+  #tray:hover, #tray.over, #tray:focus-within { border-color: var(--accent); background: var(--accent-soft); }
+  #tray:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #tray .big { font: 600 17px/1.3 var(--font-display); }
+  #tray .big b { color: var(--accent); }
+  #tray small { color: var(--muted); }
+  #file { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between;
+         font-size: 14px; color: var(--muted); }
+  .bar label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+  .bar input { accent-color: var(--accent); width: 16px; height: 16px; }
+  button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer;
+                text-decoration: underline; text-underline-offset: 3px; }
+  button.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap > *, #results > *, .card > * { min-width: 0; }
+  #results { display: grid; gap: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 18px 20px;
+          display: grid; gap: 14px; min-width: 0; }
+  .head { display: flex; gap: 16px; align-items: center; min-width: 0; }
+  .dial { position: relative; width: 68px; height: 68px; flex: none; }
+  .dial svg { display: block; transform: rotate(-90deg); }
+  .dial .num { position: absolute; inset: 0; display: grid; place-items: center;
+               font: 600 20px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+  .meta { display: grid; gap: 3px; min-width: 0; }
+  .fname { font-weight: 600; overflow-wrap: anywhere; }
+  .verdict { font-weight: 600; font-size: 14px; }
+  .chip { justify-self: start; font: 500 11px/1 var(--font-mono); letter-spacing: .06em; padding: 4px 7px;
+          border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .wait { color: var(--muted); font-size: 14px; }
+
+  .findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .f { border-left: 3px solid var(--muted); padding: 8px 12px; background: var(--paper);
+       border-radius: 0 8px 8px 0; min-width: 0; }
+  .f .tag { font: 500 11px/1 var(--font-mono); letter-spacing: .06em; margin-right: 8px; color: var(--muted); }
+  .f ul { margin: 5px 0 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
+  .f.critical { border-color: var(--crit); } .f.critical .tag { color: var(--crit); }
+  .f.high { border-color: var(--high); } .f.high .tag { color: var(--high); }
+  .f.medium { border-color: var(--med); } .f.medium .tag { color: var(--med); }
+  .f.low { border-color: var(--low); } .f.low .tag { color: var(--low); }
+  .clean { margin: 0; color: var(--ok); font-weight: 500; }
+  .err { margin: 0; color: var(--crit); }
+
+  details { border-top: 1px solid var(--rule); padding-top: 10px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 500; font-size: 14px; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ledger { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { font: 500 11px/1.2 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  td.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  td.desc { white-space: normal; min-width: 160px; }
+  tr.bad td { color: var(--crit); }
+  .ok-mark { color: var(--ok); } .bad-mark { color: var(--crit); font-weight: 600; }
+
+  footer { color: var(--muted); font-size: 13px; display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 16px; }
+  footer p { margin: 0; max-width: 72ch; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Kiểm tra sao kê ngân hàng · PDF</span>
+    <h1>Soi Sao Kê</h1>
+    <p class="lede">Tìm dấu hiệu sao kê bị chỉnh sửa hoặc làm giả: số dư lũy kế không khớp, file từng được lưu bằng phần mềm sửa PDF, chữ bị viết đè, font lạ chèn vào số tiền.</p>
+    <span class="lock"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>File được đọc ngay trong trình duyệt của bạn, không tải lên máy chủ nào.</span>
+  </header>
+
+  <label id="tray" for="file">
+    <input id="file" type="file" accept="application/pdf,.pdf" multiple>
+    <span class="big"><b>Chọn file PDF</b> hoặc kéo thả vào đây</span>
+    <small>Chọn được nhiều file cùng lúc · tối đa 50 trang mỗi file</small>
+  </label>
+
+  <div class="bar">
+    <label for="verbose"><input type="checkbox" id="verbose"> Hiện cả mục thông tin (metadata, font, số dòng giao dịch)</label>
+    <span id="sampleNote">Đang hiện 4 file mẫu tự tạo để minh hoạ. <button class="link" id="clearSamples" type="button">Ẩn file mẫu</button></span>
+  </div>
+
+  <section id="results" aria-live="polite"></section>
+
+  <footer>
+    <p><strong>Cách đọc điểm:</strong> dưới 20 là thấp, 20–49 cần xác minh thêm, từ 50 trở lên có nhiều dấu hiệu bị sửa. Số dư không khớp hoặc ngày không tồn tại tự nó đã đủ 50 điểm.</p>
+    <p>Kết quả chỉ là cảnh báo dựa trên dấu hiệu kỹ thuật, không phải kết luận pháp lý. Một file giả được dựng lại hoàn toàn với số liệu khớp nhau có thể không bị phát hiện. Khi nghi ngờ, hãy xác minh trực tiếp với ngân hàng phát hành.</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+"use strict";
+const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const SAMPLES = {"Mẫu 1 · sao kê gốc.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0NvbnRlbnRzIDcgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgNiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNCAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MTAxNzA5MDMzNiswMCcwMCcpIC9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAodW50aXRsZWQpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDMgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNgo+PgpzdHJlYW0KR2FzYWxiQVAwTiZBN1RMRikzQVdYPmI7RF4hVl87J2FQPEUjNk03QVhbaykqXnUnPy05TWo5UCdQMWpYQjRjQChZNk4rSFgxMTRtY09TRSolRiZqYWNwZW5fLTBCKWNidTluaj4/NihPNlxuPFdPMTxyZ2VsXi9UQigmajdYXzAuSEBUMSZvNWFoZGJfXko6SmlQKzdscmJGcCxmLW1qVll0biRqUz1jVVksLShXW0BUWDsjVmtnNGFDdGJTT0RxSlcoakJqbFhXQzUidXBqYSFCS0ZMQilKUEwjK2htL1tKZEdjPCRPWVdlV0FPajkkZlUmWyVKKWlSMCxpaSteQDRRLiJEMiMqdGdeImcwSGVcMXE0SVRzYS9xbDxnJiFLSm1ubFI5S1BpNVQ7M1ZNSTZhJlBpSS5CRVVkTFEsXFA3c01VJ1JdKFxGUGVASm9vZnR1a28lOTRQV3BhWFBNcCFwQ1liZ1tfbj9iSCNEX25pJGN1JSEiRUE3Lmo2VE1MLTcuLzRXOmxUITknOWNlKm9CVEV+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDYxIDAwMDAwIG4gCjAwMDAwMDAwOTIgMDAwMDAgbiAKMDAwMDAwMDE5OSAwMDAwMCBuIAowMDAwMDAwNDAyIDAwMDAwIG4gCjAwMDAwMDA0NzAgMDAwMDAgbiAKMDAwMDAwMDc1MCAwMDAwMCBuIAowMDAwMDAwODA5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDYxNGE2YjZlZWRhZWQ1ODkwMDE0Y2NmOWNkNDdmMDI3Pjw2MTRhNmI2ZWVkYWVkNTg5MDAxNGNjZjljZDQ3ZjAyNz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNSAwIFIKL1Jvb3QgNCAwIFIKL1NpemUgOAo+PgpzdGFydHhyZWYKMTMwNQolJUVPRgo=", "Mẫu 2 · bị sửa một số dư.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0NvbnRlbnRzIDcgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgNiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNCAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MTAxNzA5MDMzNiswMCcwMCcpIC9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAodW50aXRsZWQpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDMgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNQo+PgpzdHJlYW0KR2FzYWxiPixyLyZBN2BmanA0TWZdLE5oK1wtNWg3Qz1PQmoqc2A9O0pzb3I1NmlTMmQwcllfMC4+aF1pb0MuIlYlISFIQWo4SzxIPjBOVFYvP2c0KFhZZkFfOTA8I1ZWZztYT1g2XiFIK1g0Q0JgNkJwZkBeVWtgP0VuaDAtNihgTT0yTSsqLzpmXzwsKVU7SV5MNk8wQ0ZnWzU7J04nJlYlcF9qJidlMmZlVUtlPENrcz9YaWprMDdEQ0VbQ108OTw5JzttczgsPjBzWlROSzBBOTQ5VnMnJT4hSUNyVXQzQTUoMDxDIyxSPycyaixCO2RRJFAkXy5dRS4uWF9tPG5KJXJOL11VQCQ+TyxWTzZLU2dbKlQqNiksJklhLTtAJW1aLjtvKGEvTWA/QTFsUCNXZVNsL2Jea1lnPGNESW9BRmVCP2VNLGUzPzYyUGsrOzZNVW0pRVVPbExhM2NRVCIyZWBEJktYL1BuM0kodDFQPCNQMWgrTjQqLVhtZDBjb3BKbEw7VDRCO19aUUg9SGxXKn4+ZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNjEgMDAwMDAgbiAKMDAwMDAwMDA5MiAwMDAwMCBuIAowMDAwMDAwMTk5IDAwMDAwIG4gCjAwMDAwMDA0MDIgMDAwMDAgbiAKMDAwMDAwMDQ3MCAwMDAwMCBuIAowMDAwMDAwNzUwIDAwMDAwIG4gCjAwMDAwMDA4MDkgMDAwMDAgbiAKdHJhaWxlcgo8PAovSUQgCls8YjJjYjBlMTI4MzM3NzEzNTk2NzM3MGE1NWJhYzJlMGM+PGIyY2IwZTEyODMzNzcxMzU5NjczNzBhNTViYWMyZTBjPl0KJSBSZXBvcnRMYWIgZ2VuZXJhdGVkIFBERiBkb2N1bWVudCAtLSBkaWdlc3QgKG9wZW5zb3VyY2UpCgovSW5mbyA1IDAgUgovUm9vdCA0IDAgUgovU2l6ZSA4Cj4+CnN0YXJ0eHJlZgoxMzA0CiUlRU9GCg==", "Mẫu 3 · lưu lại bằng iLovePDF.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSCj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMSAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL0NvbnRlbnRzIDcgMCBSIC9NZWRpYUJveCBbIDAgMCA1OTUuMjc1NiA4NDEuODg5OCBdIC9QYXJlbnQgNiAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNCAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDYgMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MTAxNzA5MDMzNiswMCcwMCcpIC9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKSAvS2V5d29yZHMgKCkgL01vZERhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvUHJvZHVjZXIgKFJlcG9ydExhYiBQREYgTGlicmFyeSAtIFwob3BlbnNvdXJjZVwpKSAKICAvU3ViamVjdCAodW5zcGVjaWZpZWQpIC9UaXRsZSAodW50aXRsZWQpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKNiAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDMgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDQwNgo+PgpzdHJlYW0KR2FzYWxiQVAwTiZBN1RMRikzQVdYPmI7RF4hVl87J2FQPEUjNk03QVhbaykqXnUnPy05TWo5UCdQMWpYQjRjQChZNk4rSFgxMTRtY09TRSolRiZqYWNwZW5fLTBCKWNidTluaj4/NihPNlxuPFdPMTxyZ2VsXi9UQigmajdYXzAuSEBUMSZvNWFoZGJfXko6SmlQKzdscmJGcCxmLW1qVll0biRqUz1jVVksLShXW0BUWDsjVmtnNGFDdGJTT0RxSlcoakJqbFhXQzUidXBqYSFCS0ZMQilKUEwjK2htL1tKZEdjPCRPWVdlV0FPajkkZlUmWyVKKWlSMCxpaSteQDRRLiJEMiMqdGdeImcwSGVcMXE0SVRzYS9xbDxnJiFLSm1ubFI5S1BpNVQ7M1ZNSTZhJlBpSS5CRVVkTFEsXFA3c01VJ1JdKFxGUGVASm9vZnR1a28lOTRQV3BhWFBNcCFwQ1liZ1tfbj9iSCNEX25pJGN1JSEiRUE3Lmo2VE1MLTcuLzRXOmxUITknOWNlKm9CVEV+PmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDYxIDAwMDAwIG4gCjAwMDAwMDAwOTIgMDAwMDAgbiAKMDAwMDAwMDE5OSAwMDAwMCBuIAowMDAwMDAwNDAyIDAwMDAwIG4gCjAwMDAwMDA0NzAgMDAwMDAgbiAKMDAwMDAwMDc1MCAwMDAwMCBuIAowMDAwMDAwODA5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPDYxNGE2YjZlZWRhZWQ1ODkwMDE0Y2NmOWNkNDdmMDI3Pjw2MTRhNmI2ZWVkYWVkNTg5MDAxNGNjZjljZDQ3ZjAyNz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNSAwIFIKL1Jvb3QgNCAwIFIKL1NpemUgOAo+PgpzdGFydHhyZWYKMTMwNQolJUVPRgo1IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykKL0NyZWF0aW9uRGF0ZSAoRFwwNzIyMDI2MTAxNzA5MDMzNlwwNTMwMFwwNDcwMFwwNDcpCi9DcmVhdG9yIChDb3JlQmFua2luZyBTdGF0ZW1lbnQgRW5naW5lKQovS2V5d29yZHMgKCkKL01vZERhdGUgKERcMDcyMjAyNjEwMTcwOTAzMzZcMDUzMDBcMDQ3MDBcMDQ3KQovUHJvZHVjZXIgKGlMb3ZlUERGKQovU3ViamVjdCAodW5zcGVjaWZpZWQpCi9UaXRsZSAodW50aXRsZWQpCi9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKOCAwIG9iajw8Ci9UeXBlIC9YUmVmCi9TaXplIDkKL1Jvb3QgNCAwIFIKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL0luZGV4IFsgNSAxIF0KL1cgWyAxIDQgMSBdCi9JbmZvIDUgMCBSCi9QcmV2IDEzMDUKL0lEIFsgPDYxNGE2YjZlZWRhZWQ1ODkwMDE0Y2NmOWNkNDdmMDI3PiA8NjE0YTZiNmVlZGFlZDU4OTAwMTRjY2Y5Y2Q0N2YwMjc+IF0KL0xlbmd0aCAxNAo+PgpzdHJlYW0KeJxjZGBg62EAAAE2AJQKZW5kc3RyZWFtCmVuZG9iagpzdGFydHhyZWYKMTk0NwolJUVPRgo=", "Mẫu 4 · viết đè số tiền.pdf": "JVBERi0xLjMKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUgo+PgplbmRvYmoKMiAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjEgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9CYXNlRm9udCAvQ291cmllciAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjIgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iago0IDAgb2JqCjw8Ci9Db250ZW50cyA4IDAgUiAvTWVkaWFCb3ggWyAwIDAgNTk1LjI3NTYgODQxLjg4OTggXSAvUGFyZW50IDcgMCBSIC9SZXNvdXJjZXMgPDwKL0ZvbnQgMSAwIFIgL1Byb2NTZXQgWyAvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJIF0KPj4gL1JvdGF0ZSAwIC9UcmFucyA8PAoKPj4gCiAgL1R5cGUgL1BhZ2UKPj4KZW5kb2JqCjUgMCBvYmoKPDwKL1BhZ2VNb2RlIC9Vc2VOb25lIC9QYWdlcyA3IDAgUiAvVHlwZSAvQ2F0YWxvZwo+PgplbmRvYmoKNiAwIG9iago8PAovQXV0aG9yIChhbm9ueW1vdXMpIC9DcmVhdGlvbkRhdGUgKEQ6MjAyNjEwMTcwOTAzMzYrMDAnMDAnKSAvQ3JlYXRvciAoQ29yZUJhbmtpbmcgU3RhdGVtZW50IEVuZ2luZSkgL0tleXdvcmRzICgpIC9Nb2REYXRlIChEOjIwMjYxMDE3MDkwMzM2KzAwJzAwJykgL1Byb2R1Y2VyIChSZXBvcnRMYWIgUERGIExpYnJhcnkgLSBcKG9wZW5zb3VyY2VcKSkgCiAgL1N1YmplY3QgKHVuc3BlY2lmaWVkKSAvVGl0bGUgKHVudGl0bGVkKSAvVHJhcHBlZCAvRmFsc2UKPj4KZW5kb2JqCjcgMCBvYmoKPDwKL0NvdW50IDEgL0tpZHMgWyA0IDAgUiBdIC9UeXBlIC9QYWdlcwo+PgplbmRvYmoKOCAwIG9iago8PAovRmlsdGVyIFsgL0FTQ0lJODVEZWNvZGUgL0ZsYXRlRGVjb2RlIF0gL0xlbmd0aCA0NTIKPj4Kc3RyZWFtCkdhc2FtOFQnLzcnXSFoZltxbTs+WiZSI1Q/IT0oPlBwZmVSKFNJMGVYKzFuPDc7aCJERUJtTmtLV3BSOkxCIkttIlpTWl5OblpBWkFoYS9wJi8rKypUcFVGN0BXJmpVNExhcGZSMiZJXkVDPzx0Y1puMGZlbF4uKUFtXFlmWSVLOHRAJEFKWl5rTUVHJWAwV0NMQT9DZzRES1AzZSZcZEVZWSw/JGhIbjxpRUdqWk9AU2RaSVM4cD9MPmNNdEdPOj9BOWpPay1zMW5kZGZHLmMuMignY11ja15jP0ovYDNpTnMzbSx1PXNUcURQdEkqLmpmbjJmRVNHLTlTblEzblVhJm86J0FBQyZlJDlgZzlfWGs7O0U7LEYiKXAjXTs9dWFATGY9ayJCVTtWJW8tRDU2UDRiV04jVkYnNUIyTUo1TDNjN2JIX0UxW0xRY1QuJ19bJzlhUTBRVWIjSWNXMmdwcTJZVG9JNHA7PjoqLUA6WnVbNm8tbC1SSmAtLDhlY2xDSD9LP2o8cl1GWFw7UnJgOSQyb0EvJDM6K2dgYCZNcCEvc004dV9KL19mI0pwPiUnOGUicCU2VUQoOilnUSlBM34+ZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgOQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNjEgMDAwMDAgbiAKMDAwMDAwMDEwMiAwMDAwMCBuIAowMDAwMDAwMjA5IDAwMDAwIG4gCjAwMDAwMDAzMTQgMDAwMDAgbiAKMDAwMDAwMDUxNyAwMDAwMCBuIAowMDAwMDAwNTg1IDAwMDAwIG4gCjAwMDAwMDA4NjUgMDAwMDAgbiAKMDAwMDAwMDkyNCAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9JRCAKWzwyNDUzNDJiNWQwZTZhOTRjNGU5NWU2MmRkNzYxNmYxYz48MjQ1MzQyYjVkMGU2YTk0YzRlOTVlNjJkZDc2MTZmMWM+XQolIFJlcG9ydExhYiBnZW5lcmF0ZWQgUERGIGRvY3VtZW50IC0tIGRpZ2VzdCAob3BlbnNvdXJjZSkKCi9JbmZvIDYgMCBSCi9Sb290IDUgMCBSCi9TaXplIDkKPj4Kc3RhcnR4cmVmCjE0NjYKJSVFT0YK"};
+
+const SEV = {
+  critical: { w: 50, label: "RẤT CAO", order: 0 },
+  high:     { w: 30, label: "CAO", order: 1 },
+  medium:   { w: 15, label: "TRUNG BÌNH", order: 2 },
+  low:      { w: 5,  label: "THẤP", order: 3 },
+  info:     { w: 0,  label: "THÔNG TIN", order: 4 },
+};
+const MAX_PAGES = 50;
+
+const EDITORS = ["photoshop", "illustrator", "gimp", "canva", "ilovepdf", "smallpdf", "sejda",
+  "pdfescape", "pdf-xchange", "foxit phantompdf", "foxit pdf editor", "nitro", "pdfelement",
+  "wondershare", "inkscape", "libreoffice", "openoffice", "microsoft word", "microsoft® word",
+  "microsoft excel", "microsoft® excel", "wps", "pdffiller", "docfly", "pdf candy", "soda pdf",
+  "abbyy finereader", "acrobat pro", "adobe acrobat", "pdf24", "paint", "pixlr", "fotor"];
+const SUSPICIOUS_ANNOTS = new Set(["FreeText", "Square", "Stamp", "Ink", "Redact", "Widget"]);
+
+const DATE_RE = /\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4}|\d{2})\b|\b(\d{4})-(\d{2})-(\d{2})\b/;
+const DATE_RE_G = new RegExp(DATE_RE.source, "g");
+const AMOUNT_RE = /(?<![\w.,])[-+]?(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+[.,]\d{2}|0)(?![\w]|[.,]\d)/g;
+const OPENING_RE = /(số dư đầu kỳ|so du dau ky|opening balance|balance brought forward|số dư đầu)/i;
+const CLOSING_RE = /(số dư cuối kỳ|so du cuoi ky|closing balance|ending balance|số dư cuối)/i;
+const SUBSET_RE = /^[A-Z]{6}\+/;
+
+/* ---------- report ---------- */
+class Report {
+  constructor(name) { this.name = name; this.findings = []; this.ledger = null; }
+  add(check, severity, message, details = []) { this.findings.push({ check, severity, message, details }); }
+  get score() { return Math.min(100, this.findings.reduce((s, f) => s + SEV[f.severity].w, 0)); }
+  get level() { return this.score >= 50 ? "high" : this.score >= 20 ? "mid" : "low"; }
+  get verdict() {
+    return { high: "CAO · nhiều dấu hiệu chỉnh sửa/giả mạo",
+             mid: "TRUNG BÌNH · có điểm bất thường, cần xác minh thêm",
+             low: "THẤP · chưa thấy dấu hiệu bất thường rõ ràng" }[this.level];
+  }
+}
+
+/* ---------- money & dates (amounts kept as integer cents) ---------- */
+function parseAmount(token) {
+  token = token.trim();
+  const sign = token.startsWith("-") ? -1 : 1;
+  token = token.replace(/^[+-]/, "");
+  const last = Math.max(token.lastIndexOf("."), token.lastIndexOf(","));
+  let value;
+  if (last >= 0) {
+    const tail = token.slice(last + 1);
+    if (tail.length === 1 || tail.length === 2) {
+      value = Number(token.slice(0, last).replace(/[.,]/g, "") + "." + tail);
+    } else {
+      value = Number(token.replace(/[.,]/g, ""));
+    }
+  } else {
+    value = Number(token);
+  }
+  return Number.isFinite(value) ? sign * Math.round(value * 100) : null;
+}
+const fmt = cents => (cents / 100).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+
+function parseDate(m) {
+  let y, mo, d;
+  if (m[4]) { y = +m[4]; mo = +m[5]; d = +m[6]; }
+  else { d = +m[1]; mo = +m[2]; y = +m[3]; if (y < 100) y += 2000; }
+  const dt = new Date(y, mo - 1, d);
+  return (dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d) ? dt : null;
+}
+
+function pdfDate(s) {
+  if (!s) return null;
+  try { return pdfjsLib.PDFDateString.toDateObject(s); } catch { return null; }
+}
+
+/* ---------- PDF reading ---------- */
+async function readPdf(bytes) {
+  const doc = await pdfjsLib.getDocument({ data: bytes.slice(), fontExtraProperties: true,
+                                          isEvalSupported: false, disableFontFace: true, verbosity: 0 }).promise;
+  const meta = await doc.getMetadata().catch(() => ({}));
+  const pages = [];
+  const count = Math.min(doc.numPages, MAX_PAGES);
+  for (let i = 1; i <= count; i++) {
+    const page = await doc.getPage(i);
+    await page.getOperatorList().catch(() => null);  // resolves real font names into commonObjs
+    const text = await page.getTextContent();
+    const annots = await page.getAnnotations().catch(() => []);
+    const fontNames = {};
+    for (const it of text.items) {
+      if (!it.fontName || it.fontName in fontNames) continue;
+      let real = it.fontName;
+      try { const f = page.commonObjs.get(it.fontName); if (f && f.name) real = f.name; } catch {}
+      fontNames[it.fontName] = real;
+    }
+    const items = text.items
+      .filter(it => typeof it.str === "string" && it.str.trim())
+      .map(it => {
+        const h = Math.abs(it.transform[3]) || it.height || 10;
+        return { str: it.str, x0: it.transform[4], x1: it.transform[4] + it.width, y: it.transform[5], h,
+                 font: fontNames[it.fontName] || it.fontName || "?" };
+      });
+    pages.push({ items, annots });
+  }
+  return { meta, pages, numPages: doc.numPages };
+}
+
+function buildLines(items) {
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x0 - b.x0);
+  const lines = [];
+  for (const it of sorted) {
+    const line = lines[lines.length - 1];
+    if (line && Math.abs(line.y - it.y) <= Math.max(2, it.h * 0.5)) line.items.push(it);
+    else lines.push({ y: it.y, items: [it] });
+  }
+  return lines.map(l => {
+    l.items.sort((a, b) => a.x0 - b.x0);
+    let s = "", prev = null;
+    for (const it of l.items) {
+      if (prev && it.x0 - prev.x1 > it.h * 0.25) s += " ";
+      s += it.str; prev = it;
+    }
+    return s;
+  });
+}
+
+/* ---------- file-level checks ---------- */
+const findEditors = t => EDITORS.filter(e => (t || "").toLowerCase().includes(e));
+
+function checkMetadata(meta, raw, r) {
+  const info = meta.info || {};
+  const producer = info.Producer || "", creator = info.Creator || "";
+  const created = pdfDate(info.CreationDate), modified = pdfDate(info.ModDate);
+  r.add("metadata", "info", "Thông tin metadata", [
+    `Producer: ${producer || "(trống)"}`, `Creator: ${creator || "(trống)"}`,
+    `Ngày tạo: ${created ? created.toLocaleString("vi-VN") : "(trống)"}`,
+    `Ngày sửa: ${modified ? modified.toLocaleString("vi-VN") : "(trống)"}`]);
+
+  if (!producer && !creator)
+    r.add("metadata", "low", "Metadata Producer/Creator bị xoá trống, có thể đã bị làm sạch để che dấu vết");
+
+  const editors = findEditors(producer + " " + creator);
+  if (editors.length)
+    r.add("metadata", "high", "File được tạo hoặc lưu bằng phần mềm chỉnh sửa, không phải hệ thống ngân hàng",
+          [`Phát hiện: ${editors.join(", ")}`]);
+
+  let xmp = "";
+  try { xmp = (meta.metadata && meta.metadata.getRaw && meta.metadata.getRaw()) || ""; } catch {}
+  const tools = new Set();
+  for (const src of [raw, xmp])
+    for (const m of src.matchAll(/(?:CreatorTool|softwareAgent)["'=>\s]*([^<"']{2,120})/g)) tools.add(m[1].trim());
+  const xmpEditors = [...new Set([...tools].flatMap(findEditors))].filter(e => !editors.includes(e));
+  if (xmpEditors.length)
+    r.add("metadata", "high", "Lịch sử XMP cho thấy file từng được mở hoặc lưu bằng phần mềm chỉnh sửa",
+          [`Phát hiện: ${xmpEditors.join(", ")}`, ...[...tools].slice(0, 5)]);
+
+  if (created && modified) {
+    const delta = modified - created;
+    if (delta > 5 * 60e3) {
+      const days = Math.floor(delta / 864e5), hours = Math.round((delta % 864e5) / 36e5);
+      r.add("metadata", "medium", "Ngày sửa khác ngày tạo: file đã được lưu lại sau khi xuất",
+            [`Chênh lệch: ${days} ngày ${hours} giờ`]);
+    } else if (delta < -60e3) {
+      r.add("metadata", "medium", "Ngày sửa sớm hơn ngày tạo: metadata không nhất quán");
+    }
+  }
+  const soon = Date.now() + 864e5;
+  if (created && created > soon) r.add("metadata", "medium", "Ngày tạo file nằm trong tương lai");
+  if (modified && modified > soon) r.add("metadata", "medium", "Ngày sửa file nằm trong tương lai");
+}
+
+function checkRevisions(raw, r) {
+  const eof = (raw.match(/%%EOF/g) || []).length;
+  const linearized = raw.slice(0, 2048).includes("/Linearized");
+  const revisions = eof - (linearized && eof > 1 ? 1 : 0);
+  if (revisions > 1)
+    r.add("structure", "high", `File có ${revisions} phiên bản lưu: nội dung đã bị sửa sau khi tạo`,
+          ["Sao kê xuất trực tiếp từ ngân hàng thường chỉ có 1 phiên bản"]);
+  else if (raw.includes("/Prev") && !linearized)
+    r.add("structure", "low", "Bảng xref có tham chiếu /Prev, có dấu hiệu từng được cập nhật");
+}
+
+function checkAnnotations(pages, r) {
+  const found = {}, sigs = [];
+  for (const p of pages) for (const a of p.annots) {
+    if (a.subtype === "Widget" && a.fieldType === "Sig") { sigs.push(a.fieldName || "chữ ký"); continue; }
+    if (SUSPICIOUS_ANNOTS.has(a.subtype)) found[a.subtype] = (found[a.subtype] || 0) + 1;
+  }
+  if (sigs.length)
+    r.add("signature", "info", "File có chữ ký số. Hãy mở bằng Adobe Reader để kiểm tra chữ ký còn hợp lệ không",
+          [`Trường chữ ký: ${sigs.join(", ")}`]);
+  const keys = Object.keys(found);
+  if (keys.length)
+    r.add("structure", "high", "Có chú thích hoặc ô nhập đặt đè lên trang (thường dùng để che và viết đè số liệu)",
+          keys.map(k => `${k}: ${found[k]}`));
+}
+
+function checkFonts(pages, r) {
+  const chars = {}, samples = {}, subsets = {};
+  let total = 0;
+  for (const p of pages) for (const it of p.items) {
+    const n = it.str.replace(/\s/g, "").length;
+    if (!n) continue;
+    total += n;
+    chars[it.font] = (chars[it.font] || 0) + n;
+    if ((samples[it.font] || "").length < 40) samples[it.font] = (samples[it.font] || "") + it.str.replace(/\s/g, "");
+    if (SUBSET_RE.test(it.font)) (subsets[it.font.slice(7)] ||= new Set()).add(it.font.slice(0, 6));
+  }
+  if (!total) return;
+  const ranked = Object.entries(chars).sort((a, b) => b[1] - a[1]);
+  r.add("fonts", "info", `Số font được dùng: ${ranked.length}`, ranked.slice(0, 10).map(([n, c]) => `${n}: ${c} ký tự`));
+
+  for (const [base, set] of Object.entries(subsets))
+    if (set.size > 1)
+      r.add("fonts", "medium", `Font "${base}" được nhúng ${set.size} lần với subset khác nhau: dấu hiệu nội dung được ghép hoặc sửa bằng công cụ khác`,
+            [`Subset: ${[...set].sort().join(", ")}`]);
+
+  for (const [name, count] of ranked) {
+    const s = samples[name] || "";
+    const digits = (s.match(/\d/g) || []).length;
+    if (count / total < 0.1 && count <= 60 && digits >= Math.max(3, s.length * 0.6))
+      r.add("fonts", "medium", `Font hiếm "${name}" chỉ dùng cho ${count} ký tự, chủ yếu là chữ số: có thể số tiền hoặc số dư đã bị sửa`,
+            [`Mẫu: ${s}`]);
+  }
+  if (ranked.length > 8) r.add("fonts", "low", `Dùng quá nhiều font (${ranked.length}) so với sao kê thông thường`);
+}
+
+function checkOverlap(pages, r) {
+  const hits = [];
+  pages.forEach((p, idx) => {
+    const rows = {};
+    for (const it of p.items) (rows[Math.round(it.y / 3)] ||= []).push(it);
+    for (const row of Object.values(rows)) {
+      row.sort((a, b) => a.x0 - b.x0);
+      for (let i = 1; i < row.length; i++) {
+        const a = row[i - 1], b = row[i];
+        const overlap = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+        const narrow = Math.min(a.x1 - a.x0, b.x1 - b.x0) || 1;
+        if (overlap / narrow >= 0.6 && (a.str !== b.str || a.font !== b.font))
+          hits.push(`Trang ${idx + 1}: "${a.str.trim()}" chồng lên "${b.str.trim()}"`);
+      }
+    }
+  });
+  if (hits.length) r.add("overlay", "high", `Phát hiện ${hits.length} vị trí chữ bị viết đè lên chữ khác`, hits.slice(0, 5));
+}
+
+/* ---------- content checks ---------- */
+function extractRows(lines) {
+  const rows = [];
+  lines.forEach((line, i) => {
+    const dm = line.match(DATE_RE);
+    if (!dm) return;
+    const rest = line.replace(DATE_RE_G, " ");
+    const amounts = [...rest.matchAll(AMOUNT_RE)].map(m => parseAmount(m[0])).filter(v => v !== null);
+    if (amounts.length < 2) return;
+    rows.push({ line: i + 1, text: line.trim(), date: parseDate(dm), rawDate: dm[0], amounts,
+                balance: amounts[amounts.length - 1] });
+  });
+  return rows;
+}
+const explains = (row, diff) => row.amounts.slice(0, -1).some(a => Math.abs(Math.abs(a) - Math.abs(diff)) <= 1);
+
+function balanceBreaks(rows) {
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const diff = rows[i].balance - rows[i - 1].balance;
+    if (!explains(rows[i], diff)) out.push({ prev: rows[i - 1], cur: rows[i], diff });
+  }
+  return out;
+}
+function labelled(lines, re) {
+  for (const l of lines) if (re.test(l)) {
+    const m = [...l.replace(DATE_RE_G, " ").matchAll(AMOUNT_RE)];
+    if (m.length) return parseAmount(m[m.length - 1][0]);
+  }
+  return null;
+}
+
+function checkContent(lines, numPages, r) {
+  const chars = lines.reduce((s, l) => s + l.trim().length, 0);
+  if (chars < 50 * Math.max(1, numPages)) {
+    r.add("content", "medium", "File gần như không có lớp văn bản (ảnh chụp hoặc scan), không đối soát tự động được",
+          ["Sao kê điện tử thật từ ngân hàng hầu như luôn có chữ chọn được.",
+           "Hãy yêu cầu bản PDF gốc hoặc xác minh trực tiếp với ngân hàng."]);
+    return;
+  }
+  const rows = extractRows(lines);
+  if (rows.length < 2) { r.add("content", "info", "Không nhận diện được bảng giao dịch để đối soát số dư"); return; }
+
+  const fwd = balanceBreaks(rows), bwd = balanceBreaks([...rows].reverse());
+  const ascending = fwd.length <= bwd.length;
+  const breaks = ascending ? fwd : bwd;
+  const ordered = ascending ? rows : [...rows].reverse();
+  const bad = new Set(breaks.map(b => b.cur));
+  r.ledger = ordered.map((row, i) => ({ row, ok: i === 0 ? null : !bad.has(row) }));
+
+  r.add("content", "info", `Nhận diện ${rows.length} dòng giao dịch`, rows.slice(0, 3).map(x => x.text.slice(0, 100)));
+  if (breaks.length) {
+    const ratio = breaks.length / (rows.length - 1);
+    const details = breaks.slice(0, 8).map(b =>
+      `Dòng ${b.cur.line}: số dư ${fmt(b.prev.balance)} → ${fmt(b.cur.balance)} (chênh ${fmt(b.diff)}) không khớp số tiền nào trên dòng`);
+    if (ratio > 0.7 && rows.length >= 6) {
+      r.ledger = null;
+      r.add("content", "info", "Không đối soát được số dư vì bố cục bảng không chuẩn, cần kiểm tra thủ công", details.slice(0, 3));
+    } else {
+      r.add("content", "critical", `Số dư lũy kế không khớp ở ${breaks.length}/${rows.length - 1} giao dịch: dấu hiệu số tiền hoặc số dư bị sửa`, details);
+    }
+  } else {
+    r.add("content", "info", "Số dư lũy kế khớp với toàn bộ giao dịch");
+  }
+
+  const opening = labelled(lines, OPENING_RE);
+  if (opening !== null && !explains(ordered[0], ordered[0].balance - opening))
+    r.add("content", "high", "Số dư đầu kỳ không khớp với giao dịch đầu tiên",
+          [`Đầu kỳ: ${fmt(opening)}; sau giao dịch đầu: ${fmt(ordered[0].balance)}`]);
+  const closing = labelled(lines, CLOSING_RE);
+  const last = ordered[ordered.length - 1];
+  if (closing !== null && Math.abs(closing - last.balance) > 1)
+    r.add("content", "high", "Số dư cuối kỳ không khớp với số dư của giao dịch cuối cùng",
+          [`Cuối kỳ: ${fmt(closing)}; giao dịch cuối: ${fmt(last.balance)}`]);
+
+  const invalid = rows.filter(x => !x.date);
+  if (invalid.length)
+    r.add("content", "critical", "Có ngày giao dịch không tồn tại (ví dụ 31/02)", invalid.slice(0, 5).map(x => `Dòng ${x.line}: ${x.rawDate}`));
+  const today = new Date(); today.setHours(23, 59, 59);
+  const future = rows.filter(x => x.date && x.date > today);
+  if (future.length)
+    r.add("content", "high", "Có giao dịch mang ngày trong tương lai", future.slice(0, 5).map(x => `Dòng ${x.line}: ${x.rawDate}`));
+  const dated = ordered.filter(x => x.date);
+  const disorder = [];
+  for (let i = 1; i < dated.length; i++) if (dated[i].date < dated[i - 1].date) disorder.push([dated[i - 1], dated[i]]);
+  if (disorder.length)
+    r.add("content", "medium", "Ngày giao dịch không theo thứ tự thời gian",
+          disorder.slice(0, 5).map(([a, b]) => `Dòng ${a.line} (${a.rawDate}) → dòng ${b.line} (${b.rawDate})`));
+}
+
+/* ---------- orchestration ---------- */
+async function analyze(name, bytes) {
+  const r = new Report(name);
+  const raw = new TextDecoder("latin1").decode(bytes);
+  if (!raw.startsWith("%PDF")) { r.add("structure", "high", "File không phải PDF hợp lệ (thiếu phần đầu %PDF)"); return r; }
+  let pdf;
+  try { pdf = await readPdf(bytes); }
+  catch (e) {
+    if (e && e.name === "PasswordException") r.add("structure", "medium", "File có mật khẩu nên không phân tích đầy đủ được");
+    else r.add("structure", "high", `Cấu trúc PDF bị lỗi, không đọc được: ${e && e.message || e}`);
+    return r;
+  }
+  checkMetadata(pdf.meta, raw, r);
+  checkRevisions(raw, r);
+  checkAnnotations(pdf.pages, r);
+  checkFonts(pdf.pages, r);
+  checkOverlap(pdf.pages, r);
+  const lines = pdf.pages.flatMap(p => buildLines(p.items));
+  checkContent(lines, pdf.pages.length, r);
+  if (pdf.numPages > MAX_PAGES) r.add("structure", "info", `Chỉ phân tích ${MAX_PAGES}/${pdf.numPages} trang đầu`);
+  return r;
+}
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+const results = $("results"), verbose = $("verbose");
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+const LEVEL_COLOR = { high: "var(--crit)", mid: "var(--med)", low: "var(--ok)" };
+
+function dial(score, color) {
+  const box = el("div", "dial");
+  const C = 2 * Math.PI * 29;
+  box.innerHTML = `<svg width="68" height="68" viewBox="0 0 68 68" aria-hidden="true">
+    <circle cx="34" cy="34" r="29" fill="none" stroke="var(--rule)" stroke-width="7"/>
+    <circle cx="34" cy="34" r="29" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${(C * Math.max(score, 1) / 100).toFixed(1)} ${C.toFixed(1)}"/></svg>`;
+  const num = el("div", "num", String(score));
+  num.style.color = color;
+  box.append(num);
+  box.setAttribute("role", "img");
+  box.setAttribute("aria-label", `Điểm rủi ro ${score} trên 100`);
+  return box;
+}
+
+function renderLedger(r) {
+  const d = el("details");
+  const okCount = r.ledger.filter(x => x.ok === false).length;
+  d.append(el("summary", null, `Bảng đối soát số dư · ${r.ledger.length} dòng${okCount ? ` · ${okCount} dòng lệch` : " · khớp hết"}`));
+  const wrap = el("div", "ledger");
+  const t = el("table");
+  t.innerHTML = "<thead><tr><th>Ngày</th><th>Nội dung</th><th>Số tiền</th><th>Số dư</th><th>Đối soát</th></tr></thead>";
+  const tb = el("tbody");
+  r.ledger.forEach(({ row, ok }) => {
+    const tr = el("tr", ok === false ? "bad" : "");
+    let desc = row.text.replace(row.rawDate, "");
+    for (const m of desc.match(AMOUNT_RE) || []) desc = desc.replace(m, "");
+    tr.append(el("td", null, row.rawDate), el("td", "desc", desc.replace(/\s+/g, " ").trim()),
+              el("td", "n", row.amounts.slice(0, -1).map(fmt).join(" / ")), el("td", "n", fmt(row.balance)));
+    const st = el("td");
+    st.append(ok === null ? el("span", null, "dòng đầu") : ok ? el("span", "ok-mark", "✓ khớp") : el("span", "bad-mark", "✗ lệch"));
+    tr.append(st); tb.append(tr);
+  });
+  t.append(tb); wrap.append(t); d.append(wrap);
+  if (okCount) d.open = true;
+  return d;
+}
+
+function render(card, r) {
+  card.replaceChildren();
+  const color = LEVEL_COLOR[r.level];
+  const head = el("div", "head");
+  const meta = el("div", "meta");
+  if (card.dataset.sample) meta.append(el("span", "chip", "FILE MẪU"));
+  const v = el("div", "verdict", `Mức rủi ro: ${r.verdict}`);
+  v.style.color = color;
+  meta.append(el("div", "fname", r.name), v);
+  head.append(dial(r.score, color), meta);
+  card.append(head);
+
+  const items = r.findings.filter(f => verbose.checked || f.severity !== "info")
+                          .sort((a, b) => SEV[a.severity].order - SEV[b.severity].order);
+  if (items.length) {
+    const ul = el("ul", "findings");
+    for (const f of items) {
+      const li = el("li", `f ${f.severity}`);
+      li.append(el("span", "tag", SEV[f.severity].label), document.createTextNode(f.message));
+      if (f.details.length) { const d = el("ul"); f.details.forEach(x => d.append(el("li", null, x))); li.append(d); }
+      ul.append(li);
+    }
+    card.append(ul);
+  } else {
+    card.append(el("p", "clean", "Không phát hiện dấu hiệu bất thường."));
+  }
+  if (r.ledger && r.ledger.length) card.append(renderLedger(r));
+  card._report = r;
+}
+
+async function check(name, bytes, sample = false) {
+  const card = el("article", "card");
+  if (sample) card.dataset.sample = "1";
+  card.append(el("div", "fname", name), el("p", "wait", "Đang phân tích…"));
+  sample ? results.append(card) : results.prepend(card);
+  try {
+    if (!window.pdfjsLib) throw new Error("Không tải được thư viện đọc PDF. Kiểm tra kết nối mạng rồi tải lại trang.");
+    render(card, await analyze(name, bytes));
+  } catch (e) {
+    card.replaceChildren(el("div", "fname", name), el("p", "err", `Lỗi: ${e.message || e}`));
+  }
+}
+
+function clearSamples() {
+  results.querySelectorAll("[data-sample]").forEach(c => c.remove());
+  $("sampleNote").hidden = true;
+}
+
+async function handle(files) {
+  clearSamples();
+  for (const f of [...files]) {
+    if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") {
+      const c = el("article", "card");
+      c.append(el("div", "fname", f.name), el("p", "err", "Chỉ nhận file PDF. Nếu sao kê là ảnh chụp, hãy xin ngân hàng bản PDF gốc."));
+      results.prepend(c); continue;
+    }
+    await check(f.name, new Uint8Array(await f.arrayBuffer()));
+  }
+}
+
+const tray = $("tray"), input = $("file");
+input.addEventListener("change", () => { handle(input.files); input.value = ""; });
+["dragenter", "dragover"].forEach(t => tray.addEventListener(t, e => { e.preventDefault(); tray.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => tray.addEventListener(t, e => { e.preventDefault(); tray.classList.remove("over"); }));
+tray.addEventListener("drop", e => handle(e.dataTransfer.files));
+verbose.addEventListener("change", () => results.querySelectorAll(".card").forEach(c => c._report && render(c, c._report)));
+$("clearSamples").addEventListener("click", clearSamples);
+
+(async function start() {
+  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  const names = Object.keys(SAMPLES);
+  if (!names.length) { $("sampleNote").hidden = true; return; }
+  for (const n of names) {
+    const bin = atob(SAMPLES[n]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    await check(n, bytes, true);
+  }
+})();
+</script>
+</body>
+</html>

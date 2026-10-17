@@ -7,7 +7,17 @@ Công cụ dòng lệnh phân tích file **PDF sao kê ngân hàng** và chấm 
 > luôn xác minh trực tiếp với ngân hàng phát hành (gọi tổng đài, yêu cầu ngân hàng
 > gửi sao kê/xác nhận số dư trực tiếp).
 
-## Cài đặt
+## Dùng ngay trong trình duyệt (không cần cài gì)
+
+Mở file [`browser/soi-sao-ke.html`](browser/soi-sao-ke.html) bằng Chrome, Edge hoặc
+Firefox (tải file về máy rồi nháy đúp), sau đó kéo thả file PDF sao kê vào trang.
+File được đọc ngay trong trình duyệt, không gửi lên máy chủ nào. Trang cần mạng
+lần đầu để tải thư viện đọc PDF (pdf.js) từ cdnjs.
+
+Bản trình duyệt chạy cùng các bước kiểm tra như bản Python, kèm bảng đối soát số
+dư cho từng dòng giao dịch. Trang mở sẵn 4 file mẫu tự tạo để minh hoạ.
+
+## Cài đặt (bản Python)
 
 ```bash
 cd tools/bank_statement_checker
